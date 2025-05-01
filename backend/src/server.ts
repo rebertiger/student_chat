@@ -72,7 +72,7 @@ io.on('connection', (socket) => {
         console.log(`[Socket ${socket.id}] Received sendMessage event with data:`, data); // Added log
         // TODO: Add validation and get authenticated user ID
         const { roomId, messageText } = data;
-        const senderId = 1; // Placeholder - Replace with actual user ID
+        const senderId = data.senderId; // Get actual user ID from data
 
         if (!roomId || !messageText || !senderId) {
             console.error(`[Socket ${socket.id}] Invalid message data received:`, data);
