@@ -67,17 +67,16 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Handle incoming text messages
+    // Handle incoming text and file messages
     socket.on('sendMessage', async (data) => {
         console.log(`[Socket ${socket.id}] Received sendMessage event with data:`, data); // Added log
         // TODO: Add validation and get authenticated user ID
-        const { roomId, messageText } = data;
+        const { roomId, messageText, messageType = 'text', fileUrl } = data;
         const senderId = 1; // Placeholder - Replace with actual user ID
 
-        if (!roomId || !messageText || !senderId) {
+        if (!roomId || !senderId || (messageType === 'text' && !messageText) || (messageType !== 'text' && !fileUrl)) {
             console.error(`[Socket ${socket.id}] Invalid message data received:`, data);
-            // Optional: emit error back to sender
-            // socket.emit('messageError', 'Invalid message data');
+            socket.emit('messageError', 'Invalid message data');
             return;
         }
 
@@ -90,8 +89,9 @@ io.on('connection', (socket) => {
                 data: {
                     room_id: parseInt(roomId, 10),
                     sender_id: senderId,
-                    message_text: messageText,
-                    message_type: 'text', // Explicitly set type
+                    message_text: messageType === 'text' ? messageText : fileUrl,
+                    message_type: messageType,
+                    file_url: messageType !== 'text' ? fileUrl : null
                 },
                 include: { // Include sender details for broadcasting
                     sender: { select: { user_id: true, full_name: true } }

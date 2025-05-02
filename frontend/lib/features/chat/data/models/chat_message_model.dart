@@ -30,18 +30,33 @@ class ChatMessageModel extends Equatable {
       return obj != null && obj.containsKey(key) ? obj[key] as T? : null;
     }
 
+    // Helper to safely convert to int
+    int? toInt(dynamic value) {
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value);
+      return null;
+    }
+
+    final messageId = toInt(json['message_id']);
+    final roomId = toInt(json['room_id']);
+    if (messageId == null || roomId == null) {
+      throw FormatException(
+          'Invalid message_id or room_id format in JSON: $json');
+    }
+
     return ChatMessageModel(
-      messageId: json['message_id'] as int,
-      roomId: json['room_id'] as int,
-      senderId: json['sender_id'] as int?,
+      messageId: messageId,
+      roomId: roomId,
+      senderId: toInt(json['sender_id']),
       // Assuming backend includes sender like: { sender: { full_name: '...' } }
       senderFullName:
           safeGet<String>(json['sender'] as Map<String, dynamic>?, 'full_name'),
-      messageType: json['message_type'] as String,
+      messageType: json['message_type'] as String? ?? 'text',
       messageText: json['message_text'] as String?,
       fileUrl: json['file_url'] as String?,
-      sentAt: DateTime.parse(json['sent_at'] as String),
-      isEdited: json['is_edited'] as bool,
+      sentAt: DateTime.parse(
+          json['sent_at'] as String? ?? DateTime.now().toIso8601String()),
+      isEdited: json['is_edited'] as bool? ?? false,
     );
   }
 
