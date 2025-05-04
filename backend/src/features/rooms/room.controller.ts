@@ -230,7 +230,11 @@ export const uploadFile = async (req: Request, res: Response) => {
             }
         });
 
-         // 2. Broadcast message to all clients in the room via WebSocket
+        // Eğer sender null ise, JSON uyumluluğu için boş obje olarak set et
+        if (!newMessage.sender || typeof newMessage.sender !== "object") {
+            newMessage.sender = { user_id: 0, full_name: "" };
+        }
+        // 2. Broadcast message to all clients in the room via WebSocket
         const roomIdentifier = `room_${roomId}`;
         // Need access to the io instance. This is tricky here.
         // Option 1: Pass io instance down (complex)

@@ -23,6 +23,7 @@ const storage = multer.diskStorage({
 
 // File filter (optional: accept only images/pdfs)
 const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    console.log('Received file MIME type:', file.mimetype); // Log the received MIME type
     if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
         cb(null, true);
     } else {

@@ -271,9 +271,15 @@ class ChatRepositoryImpl implements ChatRepository {
       // Handle or re-throw specific exceptions
       print("ChatRepository: Error uploading file: ${e.message}");
       throw ServerException(message: e.message);
-    } catch (e) {
-      print("ChatRepository: Unexpected error uploading file: $e");
-      throw ServerException(message: 'Unexpected error uploading file.');
+    } catch (e, stackTrace) {
+      // Add stackTrace
+      print("ChatRepository: Unexpected error uploading file.");
+      print("Error Type: ${e.runtimeType}");
+      print("Error Details: $e");
+      print("Stack Trace: $stackTrace"); // Log the stack trace
+      throw ServerException(
+          message:
+              'Unexpected error uploading file: $e'); // Include original error in message
     }
   }
 

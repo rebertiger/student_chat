@@ -1,4 +1,9 @@
-import 'package:dio/dio.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:dio/dio.dart'; // Import Dio
+import 'package:http_parser/http_parser.dart'; // Import MediaType
+import 'package:path/path.dart' as p; // Import path package
+
 import '../../../../features/auth/data/datasources/auth_remote_data_source.dart'; // For ServerException
 import '../models/chat_message_model.dart';
 
@@ -54,9 +59,22 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     print("ChatRemoteDataSource: Uploading file '$filePath' to room $roomId");
     try {
       String fileName = filePath.split('/').last;
+      String mimeType = 'application/octet-stream'; // Default
+      final fileExtension = p.extension(filePath).toLowerCase();
+      if (fileExtension == '.pdf') {
+        mimeType = 'application/pdf';
+      } else if (['.jpg', '.jpeg', '.png', '.gif'].contains(fileExtension)) {
+        mimeType = 'image/${fileExtension.substring(1)}';
+      }
+
       FormData formData = FormData.fromMap({
         // Backend expects the file under the key 'file' (based on upload.single('file'))
-        "file": await MultipartFile.fromFile(filePath, filename: fileName),
+        "file": await MultipartFile.fromFile(
+          filePath,
+          filename: fileName,
+          contentType:
+              MediaType.parse(mimeType), // Belirlenen MIME tipini kullan
+        ),
       });
 
       // TODO: Add authentication headers if required by backend middleware later
