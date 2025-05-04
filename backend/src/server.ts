@@ -70,33 +70,48 @@ io.on('connection', (socket) => {
     // Handle incoming text and file messages
     socket.on('sendMessage', async (data) => {
         console.log(`[Socket ${socket.id}] Received sendMessage event with data:`, data); // Added log
-        // TODO: Add validation and get authenticated user ID
-        const { roomId, messageText, messageType = 'text', fileUrl } = data;
-        const senderId = 1; // Placeholder - Replace with actual user ID
+        // Kullanıcı bilgilerini frontend'den al
+        const { roomId, messageText, messageType = 'text', fileUrl, senderId, senderFullName } = data;
+        // Eğer senderId gönderilmediyse varsayılan değer kullan
+        const actualSenderId = senderId || 1; // Fallback to default if not provided
 
-        if (!roomId || !senderId || (messageType === 'text' && !messageText) || (messageType !== 'text' && !fileUrl)) {
+        if (!roomId || (messageType === 'text' && !messageText) || (messageType !== 'text' && !fileUrl)) {
             console.error(`[Socket ${socket.id}] Invalid message data received:`, data);
             socket.emit('messageError', 'Invalid message data');
             return;
         }
 
-        console.log(`[Socket ${socket.id}] Processing message for room ${roomId}, sender ${senderId}`); // Added log
+        console.log(`[Socket ${socket.id}] Processing message for room ${roomId}, sender ${actualSenderId}`); // Added log
 
         try {
             // 1. Save message to database
             console.log(`[Socket ${socket.id}] Attempting to save message to DB...`); // Added log
+            // Eğer senderFullName gönderildiyse, özel bir mesaj nesnesi oluştur
+            let messageData = {
+                room_id: parseInt(roomId, 10),
+                sender_id: actualSenderId,
+                message_text: messageType === 'text' ? messageText : fileUrl,
+                message_type: messageType,
+                file_url: messageType !== 'text' ? fileUrl : null
+            };
+            
             const newMessage = await prisma.message.create({
-                data: {
-                    room_id: parseInt(roomId, 10),
-                    sender_id: senderId,
-                    message_text: messageType === 'text' ? messageText : fileUrl,
-                    message_type: messageType,
-                    file_url: messageType !== 'text' ? fileUrl : null
-                },
+                data: messageData,
                 include: { // Include sender details for broadcasting
                     sender: { select: { user_id: true, full_name: true } }
                 }
             });
+            
+            // Eğer frontend'den senderFullName geldiyse ve sender null değilse, veritabanından gelen değeri değiştir
+            if (senderFullName && newMessage.sender) {
+                newMessage.sender.full_name = senderFullName;
+            } else if (senderFullName && !newMessage.sender) {
+                // Eğer sender null ise, yeni bir sender objesi oluştur
+                newMessage.sender = {
+                    user_id: actualSenderId,
+                    full_name: senderFullName
+                };
+            }
             console.log(`[Socket ${socket.id}] Message saved successfully (ID: ${newMessage.message_id})`); // Added log
 
             // 2. Broadcast message to all clients in the room

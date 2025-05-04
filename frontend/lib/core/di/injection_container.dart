@@ -1,6 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
 
+// Core Services
+import '../services/user_service.dart';
+
 // Features - Auth
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/auth_repository.dart';
@@ -19,6 +22,9 @@ final sl = GetIt.instance;
 
 Future<void> init() async {
   // --- Core ---
+  // Register UserService for global user state
+  sl.registerLazySingleton<UserService>(() => UserService());
+
   // Register Dio (HTTP client)
   sl.registerLazySingleton<Dio>(() {
     final dio = Dio(
@@ -40,7 +46,7 @@ Future<void> init() async {
 
   // Authentication
   // Bloc/Cubit - Use registerFactory for Blocs/Cubits as they often have state
-  sl.registerFactory(() => AuthCubit(authRepository: sl()));
+  sl.registerFactory(() => AuthCubit(authRepository: sl(), userService: sl()));
 
   // Repository - Use registerLazySingleton for repositories
   sl.registerLazySingleton<AuthRepository>(
@@ -50,8 +56,8 @@ Future<void> init() async {
   sl.registerLazySingleton<AuthRemoteDataSource>(
       () => AuthRemoteDataSourceImpl(dioClient: sl()));
 
-  // Rooms
-  sl.registerFactory(() => RoomCubit(roomRepository: sl()));
+  // Rooms (Home)
+  sl.registerFactory(() => RoomCubit(roomRepository: sl(), userService: sl()));
   sl.registerLazySingleton<RoomRepository>(
       () => RoomRepositoryImpl(remoteDataSource: sl()));
   sl.registerLazySingleton<RoomRemoteDataSource>(

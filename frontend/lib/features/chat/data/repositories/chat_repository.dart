@@ -1,6 +1,8 @@
 import 'dart:async'; // For StreamController, Stream
 // import 'package:web_socket_channel/web_socket_channel.dart'; // Removed
 import 'package:socket_io_client/socket_io_client.dart' as IO; // Added
+import '../../../../core/di/injection_container.dart'; // GetIt için
+import '../../../../core/services/user_service.dart'; // Kullanıcı servisi için
 import '../../../../features/auth/data/datasources/auth_remote_data_source.dart'; // For ServerException
 import '../datasources/chat_remote_data_source.dart';
 import '../models/chat_message_model.dart';
@@ -32,6 +34,9 @@ class ChatRepositoryImpl implements ChatRepository {
   StreamController<ChatMessageModel>?
       _messageStreamController; // Controller for broadcasting messages
   int? _currentRoomId; // Track the current room
+
+  // Kullanıcı servisine erişim
+  final UserService _userService = sl<UserService>();
 
   // TODO: Get WebSocket URL from config/env
   // Use ws://localhost:3000/ws for iOS simulator if backend is on localhost:3000
@@ -210,10 +215,16 @@ class ChatRepositoryImpl implements ChatRepository {
         }
       }));
       */
+      // Kullanıcı bilgilerini al
+      final String? senderFullName = _userService.getCurrentUserFullName();
+      final int? senderId = _userService.getCurrentUserId();
+
       // Emit 'sendMessage' event with data object for Socket.IO
       _socket!.emit('sendMessage', {
         'roomId': roomId,
         'messageText': text,
+        'senderFullName': senderFullName, // Kullanıcı adını ekle
+        'senderId': senderId, // Kullanıcı ID'sini ekle
       }); // Changed for Socket.IO
     } catch (e) {
       // print("Error sending message via WebSocket: $e"); // Changed
@@ -229,14 +240,28 @@ class ChatRepositoryImpl implements ChatRepository {
       {required int roomId, required String filePath}) async {
     // Optional: Check network connectivity first
     try {
-      // Call the remote data source to upload the file.
-      // The backend currently doesn't broadcast file messages via WebSocket upon upload.
-      // The message will appear when history is reloaded or WebSocket broadcast is added later.
+      // Kullanıcı bilgilerini al
+      final String? senderFullName = _userService.getCurrentUserFullName();
+      final int? senderId = _userService.getCurrentUserId();
+
+      // Dosya yüklendikten sonra, Socket.IO üzerinden kullanıcı bilgilerini içeren bir mesaj gönder
       final ChatMessageModel uploadedMessage =
           await remoteDataSource.uploadFile(
         roomId: roomId,
         filePath: filePath,
       );
+
+      // Dosya yüklendikten sonra, Socket.IO üzerinden kullanıcı bilgilerini içeren bir mesaj gönder
+      if (_socket != null && _socket!.connected) {
+        _socket!.emit('sendMessage', {
+          'roomId': roomId,
+          'messageText': uploadedMessage.messageText,
+          'messageType': 'file',
+          'fileUrl': uploadedMessage.fileUrl,
+          'senderFullName': senderFullName,
+          'senderId': senderId,
+        });
+      }
       print(
           "ChatRepository: File uploaded successfully, message ID: ${uploadedMessage.messageId}");
       // Optionally, could manually add the returned message to the stream controller

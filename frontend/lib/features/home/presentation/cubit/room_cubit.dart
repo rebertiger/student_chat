@@ -1,6 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/services/user_service.dart'; // UserService için import
 import '../../../../features/auth/data/datasources/auth_remote_data_source.dart'; // For ServerException
 import '../../data/models/room_model.dart';
 import '../../data/repositories/room_repository.dart';
@@ -9,8 +10,10 @@ part 'room_state.dart'; // Include the state definitions
 
 class RoomCubit extends Cubit<RoomState> {
   final RoomRepository roomRepository;
+  final UserService userService;
 
-  RoomCubit({required this.roomRepository}) : super(RoomInitial());
+  RoomCubit({required this.roomRepository, required this.userService})
+      : super(RoomInitial());
 
   // Method to load the list of rooms
   Future<void> loadRooms() async {
@@ -42,10 +45,17 @@ class RoomCubit extends Cubit<RoomState> {
     }
 
     try {
+      // Mevcut kullanıcı bilgilerini al
+      final currentUser = userService.getCurrentUser();
+      final userId = currentUser?.userId;
+      final userFullName = currentUser?.fullName;
+
       final newRoom = await roomRepository.createRoom(
         roomName: roomName,
         subjectId: subjectId,
         isPublic: isPublic,
+        createdBy: userId, // Kullanıcı ID'sini gönder
+        creatorName: userFullName, // Kullanıcı adını gönder
       );
       // After successful creation, reload the room list to include the new one
       await loadRooms();

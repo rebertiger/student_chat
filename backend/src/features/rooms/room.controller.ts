@@ -29,8 +29,9 @@ export const getRooms = async (req: Request, res: Response) => {
 // Create a new room
 export const createRoom = async (req: Request, res: Response) => {
     // TODO: Add authentication middleware to get created_by user ID
-    const { room_name, subject_id, is_public } = req.body;
-    const created_by_user_id = 1; // Placeholder - Replace with actual user ID from auth token
+    const { room_name, subject_id, is_public, created_by, creator_full_name } = req.body;
+    const created_by_user_id = created_by ? parseInt(created_by, 10) : 1; // Eğer gönderildiyse kullan, yoksa 1
+    const creatorName = creator_full_name || null;
 
     if (!room_name) {
         return res.status(400).json({ message: 'Room name is required.' });
@@ -43,6 +44,7 @@ export const createRoom = async (req: Request, res: Response) => {
                 subject_id: subject_id ? parseInt(subject_id, 10) : null, // Ensure subject_id is integer or null
                 is_public: is_public !== undefined ? Boolean(is_public) : true, // Default to public
                 created_by: created_by_user_id, // Link to the creator
+                creator_full_name: creatorName, // Oda oluşturan kişinin adı
             },
              include: { // Include creator info in the response
                 creator: { select: { user_id: true, full_name: true } }

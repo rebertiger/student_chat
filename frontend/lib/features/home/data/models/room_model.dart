@@ -38,8 +38,9 @@ class RoomModel extends Equatable {
       subjectName:
           safeGet<String>(json['subject'] as Map<String, dynamic>?, 'name'),
       createdBy: json['created_by'] as int?,
-      creatorName: safeGet<String>(
-          json['creator'] as Map<String, dynamic>?, 'full_name'),
+      creatorName: json['creator_full_name'] as String? ??
+          safeGet<String>(
+              json['creator'] as Map<String, dynamic>?, 'full_name'),
     );
   }
 

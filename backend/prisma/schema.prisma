@@ -74,6 +74,7 @@ model Room {
   is_public   Boolean  @default(true) @map("is_public")
   created_by  Int?     @map("created_by")
   created_at  DateTime @default(now()) @map("created_at")
+  creator_full_name String? @map("creator_full_name")
 
   subject          Subject?          @relation("RoomSubject", fields: [subject_id], references: [subject_id])
   creator          User?             @relation("RoomCreator", fields: [created_by], references: [user_id])

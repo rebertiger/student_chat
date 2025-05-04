@@ -15,7 +15,8 @@ abstract class RoomRemoteDataSource {
     required String roomName,
     int? subjectId,
     bool? isPublic,
-    // created_by will be handled by backend using auth token later
+    int? createdBy, // Oda oluşturan kullanıcının ID'si
+    String? creatorName, // Oda oluşturan kullanıcının adı
   });
 
   /// Calls the POST /api/rooms/:roomId/join endpoint.
@@ -60,6 +61,8 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
     required String roomName,
     int? subjectId,
     bool? isPublic,
+    int? createdBy, // Oda oluşturan kullanıcının ID'si
+    String? creatorName, // Oda oluşturan kullanıcının adı
   }) async {
     try {
       // TODO: Add authentication headers if required by backend middleware later
@@ -69,6 +72,9 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
           'room_name': roomName,
           'subject_id': subjectId,
           'is_public': isPublic,
+          'created_by': createdBy, // Kullanıcı ID'sini gönder
+          'creator_full_name':
+              creatorName, // Kullanıcı adını gönder - backend'in beklediği anahtar adı
         },
       );
 
