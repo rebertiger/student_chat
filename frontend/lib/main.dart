@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/features/profile/presentation/pages/profile_page.dart';
 import 'core/di/injection_container.dart' as di; // Import DI setup
 import 'features/auth/presentation/pages/login_page.dart'; // Import LoginPage
 import 'features/auth/presentation/pages/register_page.dart'; // Import RegisterPage
@@ -47,6 +48,8 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomePage(),
         '/create-room': (context) =>
             const CreateRoomPage(), // Add route for create room page
+        '/profile': (context) =>
+            const ProfilePage(), // Add route for profile page (for now, reuse home scree)
       },
     );
   }

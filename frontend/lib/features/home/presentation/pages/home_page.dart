@@ -30,7 +30,16 @@ class HomeView extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Chat Rooms'),
         // TODO: Add logout button or profile access actions
-        // actions: [ IconButton(onPressed: () { /* Logout logic */ }, icon: Icon(Icons.logout)) ],
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.pushNamed(context, '/profile');
+            },
+            icon: Icon(Icons.person_2),
+          ),
+          IconButton(
+              onPressed: () {/* Logout logic */}, icon: Icon(Icons.logout)),
+        ],
       ),
       body: BlocBuilder<RoomCubit, RoomState>(
         builder: (context, state) {

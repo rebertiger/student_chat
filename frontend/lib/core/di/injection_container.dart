@@ -1,4 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:frontend/features/profile/data/datasources/profile_remote_data_source.dart';
+import 'package:frontend/features/profile/data/repositories/profile_repository_impl.dart';
+import 'package:frontend/features/profile/domain/repositories/profile_repository.dart';
 import 'package:get_it/get_it.dart';
 
 // Core Services
@@ -16,6 +19,7 @@ import '../../features/home/presentation/cubit/room_cubit.dart';
 import '../../features/chat/data/datasources/chat_remote_data_source.dart';
 import '../../features/chat/data/repositories/chat_repository.dart';
 import '../../features/chat/presentation/cubit/chat_cubit.dart';
+import '../../features/profile/presentation/cubit/profile_cubit.dart'; // Import ProfileCubit and Repository
 
 // Service Locator instance
 final sl = GetIt.instance;
@@ -75,10 +79,19 @@ Future<void> init() async {
   sl.registerLazySingleton<ChatRemoteDataSource>(
       () => ChatRemoteDataSourceImpl(dioClient: sl()));
 
+  // Profile
+  // Register the placeholder repository first
+  sl.registerLazySingleton<ProfileRepository>(
+      () => ProfileRepositoryImpl(remoteDataSource: sl()));
+  // Register the Cubit, depending on the repository
+  sl.registerFactory(() => ProfileCubit(sl()));
+
   // --- External ---
   // (Already registered Dio above)
 
   // --- WebSocket ---
   // WebSocket setup might be handled differently, perhaps within specific feature repositories
   // or a dedicated core service, depending on how it's used.
+  sl.registerLazySingleton<ProfileRemoteDataSource>(
+      () => ProfileRemoteDataSourceImpl(dio: sl()));
 }
