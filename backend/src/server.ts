@@ -7,6 +7,7 @@ import fs from 'fs'; // Import fs to ensure uploads directory exists
 import prisma from './db'; // Import the Prisma client instance
 import authRoutes from './features/auth/auth.routes'; // Import auth routes
 import roomRoutes from './features/rooms/room.routes'; // Import room routes
+import profileRoutes from './features/profile/profile.routes'; // Import profile routes
 
 const app = express();
 const server = http.createServer(app);
@@ -45,6 +46,7 @@ app.get('/', (req: Request, res: Response) => {
 // --- API Routes ---
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
+app.use('/api/profile', profileRoutes);
 // Example: app.use('/api/messages', messageRoutes);
 
 // --- Socket.IO Connection Handling ---
