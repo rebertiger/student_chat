@@ -1,16 +1,15 @@
 import { Router } from 'express';
 import { getUserProfile, updateUserProfile } from './profile.controller';
-
-// TODO: Import authentication middleware later
+import { authenticateToken } from '../auth/auth.middleware';
 
 const router = Router();
 
 // GET /api/profile - Get user profile
-// TODO: Add auth middleware to protect this route and get user ID
-router.get('/', getUserProfile);
+// Kullanıcı kimlik doğrulaması gerekli
+router.get('/', authenticateToken, getUserProfile);
 
 // PUT /api/profile - Update user profile
-// TODO: Add auth middleware to protect this route and get user ID
-router.put('/', updateUserProfile);
+// Kullanıcı kimlik doğrulaması gerekli
+router.put('/', authenticateToken, updateUserProfile);
 
 export default router;

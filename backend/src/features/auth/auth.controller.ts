@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
 import prisma from '../../db';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 const SALT_ROUNDS = 10; // Standard salt rounds for bcrypt
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'; // JWT secret key - Bu değer normalde environment variable'dan alınmalıdır
 
 export const register = async (req: Request, res: Response) => {
     const { email, password, full_name, university, department } = req.body;
@@ -81,10 +83,14 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ message: 'Invalid credentials.' }); // Generic message
         }
 
-        // Login successful - return user data (excluding password hash)
-        // In a real app, you'd typically issue a token (JWT) here
+        // Login successful - create and return JWT token
+        const token = jwt.sign({ userId: user.user_id }, JWT_SECRET, { expiresIn: '24h' });
         const { password_hash, ...userData } = user;
-        res.status(200).json({ message: 'Login successful', user: userData });
+        res.status(200).json({
+            message: 'Giriş başarılı',
+            user: userData,
+            token: token
+        });
 
     } catch (error) {
         console.error('Login error:', error);

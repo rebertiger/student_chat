@@ -7,6 +7,7 @@ class UserModel extends Equatable {
   final String? university;
   final String? department;
   final DateTime createdAt;
+  final String? token; // Auth token'ı saklamak için
 
   const UserModel({
     required this.userId,
@@ -15,6 +16,7 @@ class UserModel extends Equatable {
     this.university,
     this.department,
     required this.createdAt,
+    this.token, // Auth token'ı constructor'a ekle
   });
 
   // Factory constructor to create a UserModel from JSON data (API response)
@@ -26,6 +28,7 @@ class UserModel extends Equatable {
       university: json['university'] as String?,
       department: json['department'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
+      token: json['token'] as String?, // JSON'dan token'ı al
     );
   }
 
@@ -38,6 +41,7 @@ class UserModel extends Equatable {
       'university': university,
       'department': department,
       'created_at': createdAt.toIso8601String(),
+      'token': token, // Token'ı JSON'a ekle
     };
   }
 
@@ -49,5 +53,6 @@ class UserModel extends Equatable {
         university,
         department,
         createdAt,
+        token, // Token'ı props listesine ekle
       ];
 }

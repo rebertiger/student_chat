@@ -7,13 +7,8 @@ import prisma from '../../db';
  */
 export const getUserProfile = async (req: Request, res: Response) => {
     try {
-        // TODO: Get user ID from authenticated session when auth middleware is implemented
-        // Auth middleware should add the user object to the request
-        // For now, we'll use a user ID from the request query, body, or user object if available
-        const userId = parseInt(req.query.userId as string) || parseInt(req.body.userId as string) || 1;
-        
-        // NOTE: When auth middleware is properly implemented, this should be:
-        // const userId = req.user.user_id;
+        // Auth middleware'den gelen kullanıcı bilgilerini kullan
+        const userId = req.user!.user_id;
 
         // First get the user to ensure it exists
         const user = await prisma.user.findUnique({
@@ -75,13 +70,8 @@ export const getUserProfile = async (req: Request, res: Response) => {
  */
 export const updateUserProfile = async (req: Request, res: Response) => {
     try {
-        // TODO: Get user ID from authenticated session when auth middleware is implemented
-        // Auth middleware should add the user object to the request
-        // For now, we'll use a user ID from the request query, body, or user object if available
-        const userId = parseInt(req.query.userId as string) || parseInt(req.body.userId as string) || 1;
-        
-        // NOTE: When auth middleware is properly implemented, this should be:
-        // const userId = req.user.user_id;
+        // Auth middleware'den gelen kullanıcı bilgilerini kullan
+        const userId = req.user!.user_id;
         
         const { username, university, department, profilePictureUrl, bio } = req.body;
 

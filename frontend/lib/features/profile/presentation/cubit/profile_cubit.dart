@@ -1,9 +1,7 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:dio/dio.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../domain/repositories/profile_repository.dart';
-import '../../../profile/data/datasources/profile_remote_data_source.dart';
 part 'profile_state.dart';
 
 class ProfileCubit extends Cubit<ProfileState> {

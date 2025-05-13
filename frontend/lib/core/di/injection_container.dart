@@ -41,8 +41,23 @@ Future<void> init() async {
         receiveTimeout: const Duration(milliseconds: 3000), // 3 seconds
       ),
     );
-    // Add interceptors if needed (e.g., for logging, auth tokens)
-    // dio.interceptors.add(LogInterceptor(responseBody: true));
+
+    // Auth token interceptor'ı ekle
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          // UserService'den token'ı al
+          final userService = sl<UserService>();
+          final user = userService.getCurrentUser();
+          if (user != null && user.token != null) {
+            // Token'ı Authorization header'ına ekle
+            options.headers['Authorization'] = 'Bearer ${user.token}';
+          }
+          return handler.next(options);
+        },
+      ),
+    );
+
     return dio;
   });
 
