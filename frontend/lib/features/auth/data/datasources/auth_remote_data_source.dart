@@ -85,9 +85,16 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       );
 
       if (response.statusCode == 200) {
-        // Assuming the API returns { "message": "...", "user": { ... } }
-        return UserModel.fromJson(
-            response.data['user'] as Map<String, dynamic>);
+        // Log the raw response for debugging
+        print('Login response: ${response.data}');
+
+        // The API returns { "message": "...", "user": { ... }, "token": "..." }
+        final userData = response.data['user'] as Map<String, dynamic>;
+
+        // Add the token to the user data before converting to UserModel
+        userData['token'] = response.data['token'] as String?;
+
+        return UserModel.fromJson(userData);
       } else {
         throw ServerException(
             message: 'Login failed with status code ${response.statusCode}');

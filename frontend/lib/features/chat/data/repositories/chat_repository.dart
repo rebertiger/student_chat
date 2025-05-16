@@ -6,6 +6,7 @@ import '../../../../core/services/user_service.dart'; // Kullanıcı servisi iç
 import '../../../../features/auth/data/datasources/auth_remote_data_source.dart'; // For ServerException
 import '../datasources/chat_remote_data_source.dart';
 import '../models/chat_message_model.dart';
+import '../models/report_model.dart';
 
 // Abstract interface for the Chat Repository
 abstract class ChatRepository {
@@ -24,6 +25,12 @@ abstract class ChatRepository {
 
   /// Cleans up resources or notifies backend when leaving a room.
   void leaveRoom(int roomId);
+
+  /// Reports a message
+  Future<ReportModel> reportMessage({
+    required int messageId,
+    String? reason,
+  });
 }
 
 // Implementation of the Chat Repository
@@ -305,6 +312,32 @@ class ChatRepositoryImpl implements ChatRepository {
       _disconnect();
     } else {
       print("ChatRepository: Not currently in room $roomId, cannot leave.");
+    }
+  }
+
+  @override
+  Future<ReportModel> reportMessage({
+    required int messageId,
+    String? reason,
+  }) async {
+    try {
+      // Get current user ID
+      final int? userId = _userService.getCurrentUserId();
+
+      // Call the remote data source
+      return await remoteDataSource.reportMessage(
+        messageId: messageId,
+        reportedBy: userId,
+        reason: reason,
+      );
+    } on ServerException catch (e) {
+      // Re-throw server exceptions
+      throw ServerException(message: e.message);
+    } catch (e) {
+      // Handle other exceptions
+      throw ServerException(
+          message:
+              'An unexpected error occurred while reporting the message: $e');
     }
   }
 

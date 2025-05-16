@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 
 // Import necessary models, repository, exceptions
 import '../../data/models/chat_message_model.dart';
+import '../../data/models/report_model.dart';
 import '../../data/repositories/chat_repository.dart'; // Will create this next
 import '../../../../features/auth/data/datasources/auth_remote_data_source.dart'; // For ServerException
 
@@ -105,6 +106,37 @@ class ChatCubit extends Cubit<ChatState> {
       // Optionally emit a state indicating disconnection
       // emit(ChatError(message: 'WebSocket connection closed.'));
     });
+  }
+
+  // Method to report a message
+  Future<void> reportMessage({
+    required int messageId,
+    String? reason,
+  }) async {
+    // You could add a specific state for reporting if needed
+    // emit(ChatReporting()); // Need to define this state
+    try {
+      // Create the report
+      final report = await chatRepository.reportMessage(
+        messageId: messageId,
+        reason: reason,
+      );
+
+      // Emit success state if needed
+      // Currently, we just keep the current state and show a snackbar in the UI
+      if (state is ChatLoaded) {
+        // We could modify state to indicate the message was reported if needed
+      }
+
+      print(
+          "ChatCubit: Message reported successfully: reportId=${report.reportId}");
+    } on ServerException catch (e) {
+      emit(ChatError(message: 'Failed to report message: ${e.message}'));
+    } catch (e) {
+      emit(ChatError(
+          message:
+              'An unexpected error occurred reporting message: ${e.toString()}'));
+    }
   }
 
   @override

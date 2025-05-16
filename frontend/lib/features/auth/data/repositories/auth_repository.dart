@@ -71,7 +71,10 @@ class AuthRepositoryImpl implements AuthRepository {
         email: email,
         password: password,
       );
-      // Map to domain entity if needed
+
+      // Log the token to debug (remove in production)
+      print('Token received: ${userModel.token}');
+
       return userModel;
     } on ServerException catch (e) {
       throw ServerException(message: e.message);

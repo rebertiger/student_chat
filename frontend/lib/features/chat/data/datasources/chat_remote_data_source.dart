@@ -1,11 +1,10 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:dio/dio.dart'; // Import Dio
 import 'package:http_parser/http_parser.dart'; // Import MediaType
 import 'package:path/path.dart' as p; // Import path package
 
 import '../../../../features/auth/data/datasources/auth_remote_data_source.dart'; // For ServerException
 import '../models/chat_message_model.dart';
+import '../models/report_model.dart';
 
 // Abstract interface for fetching chat data from remote API
 abstract class ChatRemoteDataSource {
@@ -16,6 +15,13 @@ abstract class ChatRemoteDataSource {
   /// Returns the newly created ChatMessageModel for the file.
   Future<ChatMessageModel> uploadFile(
       {required int roomId, required String filePath /* or File object */});
+
+  /// Calls POST /api/reports/message endpoint to report a message.
+  Future<ReportModel> reportMessage({
+    required int messageId,
+    int? reportedBy,
+    String? reason,
+  });
 
   // Sending text messages will likely be handled via WebSocket, not REST API.
 }
@@ -103,6 +109,41 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     } catch (e) {
       throw ServerException(
           message: 'An unexpected error occurred uploading file.');
+    }
+  }
+
+  @override
+  Future<ReportModel> reportMessage({
+    required int messageId,
+    int? reportedBy,
+    String? reason,
+  }) async {
+    print("ChatRemoteDataSource: Reporting message $messageId");
+    try {
+      final response = await dioClient.post(
+        '/reports/message',
+        data: {
+          'messageId': messageId,
+          'reportedBy': reportedBy,
+          'reason': reason,
+        },
+      );
+
+      if (response.statusCode == 201) {
+        return ReportModel.fromJson(
+            response.data['report'] as Map<String, dynamic>);
+      } else {
+        throw ServerException(
+            message: 'Failed to report message: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      final message = e.response?.data['message'] as String? ??
+          e.message ??
+          'Unknown error reporting message';
+      throw ServerException(message: message);
+    } catch (e) {
+      throw ServerException(
+          message: 'An unexpected error occurred reporting message.');
     }
   }
 }

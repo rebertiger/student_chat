@@ -1,4 +1,3 @@
-import 'package:get_it/get_it.dart';
 import '../../features/auth/data/models/user_model.dart';
 
 /// Kullanıcı bilgilerini global olarak saklamak için servis

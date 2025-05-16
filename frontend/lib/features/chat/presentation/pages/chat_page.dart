@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart'; // Import url_launcher
 import '../../../../core/di/injection_container.dart'; // Import GetIt
 import '../../data/models/chat_message_model.dart'; // Import model for type check
 import '../cubit/chat_cubit.dart'; // Import ChatCubit
+import '../widgets/report_bottom_sheet.dart'; // Import our new report bottom sheet
 
 // The main page for displaying chat messages and input
 class ChatPage extends StatelessWidget {
@@ -206,23 +207,41 @@ class _ChatViewState extends State<ChatView> {
                     itemBuilder: (context, index) {
                       final message = state.messages[index];
                       // TODO: Create a proper ChatMessageWidget
-                      // Determine if the message is from the current user (need user ID)
-                      // final bool isMe = message.senderId == currentUserId; // Need currentUserId
                       return Align(
-                        // alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                        alignment:
-                            Alignment.centerLeft, // Placeholder alignment
+                        alignment: Alignment.centerLeft,
                         child: Card(
-                          // color: isMe ? Theme.of(context).primaryColorLight : Colors.grey[300],
                           child: Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  message.senderFullName ?? 'Unknown User',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      message.senderFullName ?? 'Unknown User',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                    // Report button
+                                    IconButton(
+                                      icon: const Icon(Icons.flag_outlined,
+                                          size: 16),
+                                      tooltip: 'Report Message',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      onPressed: () {
+                                        ReportBottomSheet.show(
+                                          context,
+                                          messageId: message.messageId,
+                                          chatCubit: context.read<ChatCubit>(),
+                                          messageText: message.messageText,
+                                          senderName: message.senderFullName,
+                                        );
+                                      },
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 4),
                                 // Display content based on type
