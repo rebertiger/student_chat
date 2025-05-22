@@ -1,24 +1,31 @@
 import { Request, Response } from 'express';
-import { Server as SocketIOServer } from 'socket.io'; // Import SocketIO Server type
-import prisma from '../../db';
+import { Server as SocketIOServer } from 'socket.io';
+import pool, { query as executeQuery } from '../../db'; // Updated import
 
-// Get all public rooms (or rooms the user is part of - requires auth later)
+// Get all public rooms
 export const getRooms = async (req: Request, res: Response) => {
     try {
-        // TODO: Implement filtering based on user participation or just public rooms
-        const rooms = await prisma.room.findMany({
-            where: {
-                is_public: true // For now, only fetch public rooms
-            },
-            orderBy: {
-                created_at: 'desc' // Show newest rooms first
-            },
-            // Optionally include subject or creator info
-            include: {
-                subject: { select: { name: true } },
-                creator: { select: { user_id: true, full_name: true } }
-            }
-        });
+        const roomsResult = await executeQuery(
+            `SELECT r.room_id, r.room_name, r.is_public, r.created_at, r.creator_full_name,
+                    s.name AS subject_name,
+                    u.user_id AS creator_user_id, u.full_name AS creator_full_name
+             FROM rooms r
+             LEFT JOIN subjects s ON r.subject_id = s.subject_id
+             LEFT JOIN users u ON r.created_by = u.user_id
+             WHERE r.is_public = true
+             ORDER BY r.created_at DESC`
+        );
+
+        const rooms = roomsResult.rows.map(room => ({
+            room_id: room.room_id,
+            room_name: room.room_name,
+            is_public: room.is_public,
+            created_at: room.created_at,
+            creator_full_name: room.creator_full_name, // This might be redundant if creator relation is preferred
+            subject: room.subject_name ? { name: room.subject_name } : null,
+            creator: room.creator_user_id ? { user_id: room.creator_user_id, full_name: room.creator_full_name } : null
+        }));
+
         res.status(200).json(rooms);
     } catch (error) {
         console.error('Error fetching rooms:', error);
@@ -28,52 +35,53 @@ export const getRooms = async (req: Request, res: Response) => {
 
 // Create a new room
 export const createRoom = async (req: Request, res: Response) => {
-    // TODO: Add authentication middleware to get created_by user ID
-    const { room_name, subject_id, is_public, created_by, creator_full_name } = req.body;
-    const created_by_user_id = created_by ? parseInt(created_by, 10) : 1; // Eğer gönderildiyse kullan, yoksa 1
-    const creatorName = creator_full_name || null;
+    const { room_name, subject_id, is_public, creator_full_name } = req.body;
+    const created_by_user_id = req.user?.user_id; // Get from authenticated user
+
+    if (!created_by_user_id) {
+        return res.status(401).json({ message: 'User not authenticated to create a room.' });
+    }
 
     if (!room_name) {
         return res.status(400).json({ message: 'Room name is required.' });
     }
 
+    const actualCreatorFullName = creator_full_name || req.user?.full_name || 'Anonymous';
+
     try {
-        const newRoom = await prisma.room.create({
-            data: {
-                room_name,
-                subject_id: subject_id ? parseInt(subject_id, 10) : null, // Ensure subject_id is integer or null
-                is_public: is_public !== undefined ? Boolean(is_public) : true, // Default to public
-                created_by: created_by_user_id, // Link to the creator
-                creator_full_name: creatorName, // Oda oluşturan kişinin adı
-            },
-             include: { // Include creator info in the response
-                creator: { select: { user_id: true, full_name: true } }
-            }
-        });
+        const newRoomResult = await executeQuery(
+            `INSERT INTO rooms (room_name, subject_id, is_public, created_by, creator_full_name)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING room_id, room_name, subject_id, is_public, created_by, created_at, creator_full_name`,
+            [room_name, subject_id ? parseInt(subject_id, 10) : null, is_public !== undefined ? Boolean(is_public) : true, created_by_user_id, actualCreatorFullName]
+        );
 
+        const newRoom = newRoomResult.rows[0];
+
+        // Fetch creator details for the response (if not already part of req.user)
+        const creatorDetails = req.user ? { user_id: req.user.user_id, full_name: req.user.full_name } : null;
+        
         // Automatically add the creator as a participant
-        await prisma.roomParticipant.create({
-            data: {
-                room_id: newRoom.room_id,
-                user_id: created_by_user_id,
-            }
+        await executeQuery(
+            'INSERT INTO room_participants (room_id, user_id) VALUES ($1, $2)',
+            [newRoom.room_id, created_by_user_id]
+        );
+
+        res.status(201).json({ 
+            message: 'Room created successfully', 
+            room: { ...newRoom, creator: creatorDetails }
         });
-
-        // TODO: Potentially emit a socket event for new room creation
-
-        res.status(201).json({ message: 'Room created successfully', room: newRoom });
 
     } catch (error) {
         console.error('Error creating room:', error);
-        // Handle potential errors like invalid subject_id if foreign key constraint fails
-        if (error instanceof Error && error.message.includes('foreign key constraint')) {
+        if (error instanceof Error && (error as any).code === '23503') { // foreign key violation
              return res.status(400).json({ message: 'Invalid subject ID provided.' });
         }
         res.status(500).json({ message: 'Internal server error creating room.' });
     }
 };
 
-// Get details for a specific room (Example - might be needed later)
+// Get details for a specific room
 export const getRoomById = async (req: Request, res: Response) => {
     const roomId = parseInt(req.params.roomId, 10);
 
@@ -82,24 +90,37 @@ export const getRoomById = async (req: Request, res: Response) => {
     }
 
     try {
-        const room = await prisma.room.findUnique({
-            where: { room_id: roomId },
-            include: {
-                subject: true,
-                creator: { select: { user_id: true, full_name: true } },
-                participants: { // Include participants
-                    include: {
-                        user: { select: { user_id: true, full_name: true } }
-                    }
-                },
-                // Optionally include messages later
-            }
-        });
+        const roomResult = await executeQuery(
+            `SELECT r.*, s.name as subject_name, s.description as subject_description, 
+                    u.user_id as creator_user_id, u.full_name as creator_full_name
+             FROM rooms r
+             LEFT JOIN subjects s ON r.subject_id = s.subject_id
+             LEFT JOIN users u ON r.created_by = u.user_id
+             WHERE r.room_id = $1`,
+            [roomId]
+        );
 
-        if (!room) {
+        if (roomResult.rows.length === 0) {
             return res.status(404).json({ message: 'Room not found.' });
         }
 
+        const roomData = roomResult.rows[0];
+
+        const participantsResult = await executeQuery(
+            `SELECT rp.user_id, u.full_name
+             FROM room_participants rp
+             JOIN users u ON rp.user_id = u.user_id
+             WHERE rp.room_id = $1`,
+            [roomId]
+        );
+
+        const room = {
+            ...roomData,
+            subject: roomData.subject_id ? { subject_id: roomData.subject_id, name: roomData.subject_name, description: roomData.subject_description } : null,
+            creator: roomData.creator_user_id ? { user_id: roomData.creator_user_id, full_name: roomData.creator_full_name } : null,
+            participants: participantsResult.rows.map(p => ({ user: { user_id: p.user_id, full_name: p.full_name }}))
+        };
+        
         // TODO: Add authorization check - is user allowed to see this room?
 
         res.status(200).json(room);
@@ -111,43 +132,35 @@ export const getRoomById = async (req: Request, res: Response) => {
 
 // Join a room
 export const joinRoom = async (req: Request, res: Response) => {
-    // TODO: Add authentication middleware to get user ID
-    const userId = 1; // Placeholder - Replace with actual user ID from auth token
+    const userId = req.user?.user_id;
     const roomId = parseInt(req.params.roomId, 10);
 
+    if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated.' });
+    }
     if (isNaN(roomId)) {
         return res.status(400).json({ message: 'Invalid room ID.' });
     }
 
     try {
-        // Check if room exists (optional, FK constraint might handle this)
-        const roomExists = await prisma.room.findUnique({ where: { room_id: roomId } });
-        if (!roomExists) {
+        const roomExistsResult = await executeQuery('SELECT 1 FROM rooms WHERE room_id = $1', [roomId]);
+        if (roomExistsResult.rows.length === 0) {
             return res.status(404).json({ message: 'Room not found.' });
         }
 
-        // Check if user is already a participant
-        const existingParticipant = await prisma.roomParticipant.findFirst({
-            where: {
-                room_id: roomId,
-                user_id: userId,
-            },
-        });
+        const existingParticipantResult = await executeQuery(
+            'SELECT 1 FROM room_participants WHERE room_id = $1 AND user_id = $2',
+            [roomId, userId]
+        );
 
-        if (existingParticipant) {
-            // User is already in the room, just return success
+        if (existingParticipantResult.rows.length > 0) {
             return res.status(200).json({ message: 'Already joined this room.' });
         }
 
-        // Add user to the room
-        await prisma.roomParticipant.create({
-            data: {
-                room_id: roomId,
-                user_id: userId,
-            },
-        });
-
-        // TODO: Emit socket event if needed ('userJoined', { userId, roomId })
+        await executeQuery(
+            'INSERT INTO room_participants (room_id, user_id) VALUES ($1, $2)',
+            [roomId, userId]
+        );
 
         res.status(200).json({ message: 'Successfully joined the room.' });
 
@@ -159,33 +172,44 @@ export const joinRoom = async (req: Request, res: Response) => {
 
 // Get messages for a specific room
 export const getMessagesForRoom = async (req: Request, res: Response) => {
-    // TODO: Add authentication middleware and check if user is participant
-    const userId = 1; // Placeholder
+    const userId = req.user?.user_id; // For authorization check
     const roomId = parseInt(req.params.roomId, 10);
 
-     if (isNaN(roomId)) {
+    if (isNaN(roomId)) {
         return res.status(400).json({ message: 'Invalid room ID.' });
+    }
+    if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated.'});
     }
 
     try {
         // Optional: Verify user is participant first
-        // const participant = await prisma.roomParticipant.findFirst({ where: { room_id: roomId, user_id: userId }});
-        // if (!participant) {
-        //     return res.status(403).json({ message: 'Access denied. You are not in this room.' });
-        // }
-
-        const messages = await prisma.message.findMany({
-            where: { room_id: roomId },
-            orderBy: { sent_at: 'asc' }, // Oldest messages first
-            include: {
-                sender: { // Include sender's full name
-                    select: {
-                        user_id: true,
-                        full_name: true,
-                    }
-                }
+        const participantResult = await executeQuery(
+            'SELECT 1 FROM room_participants WHERE room_id = $1 AND user_id = $2',
+            [roomId, userId]
+        );
+        if (participantResult.rows.length === 0) {
+            // If room is public, allow viewing messages. If private, deny.
+            const roomPrivacyResult = await executeQuery('SELECT is_public FROM rooms WHERE room_id = $1', [roomId]);
+            if (roomPrivacyResult.rows.length === 0 || !roomPrivacyResult.rows[0].is_public) {
+                 return res.status(403).json({ message: 'Access denied. You are not in this private room.' });
             }
-        });
+        }
+
+        const messagesResult = await executeQuery(
+            `SELECT m.message_id, m.room_id, m.sender_id, m.message_type, m.message_text, m.file_url, m.sent_at, m.is_edited,
+                    u.user_id AS sender_user_id, u.full_name AS sender_full_name
+             FROM messages m
+             LEFT JOIN users u ON m.sender_id = u.user_id
+             WHERE m.room_id = $1
+             ORDER BY m.sent_at ASC`,
+            [roomId]
+        );
+
+        const messages = messagesResult.rows.map(msg => ({
+            ...msg,
+            sender: msg.sender_user_id ? { user_id: msg.sender_user_id, full_name: msg.sender_full_name } : null
+        }));
 
         res.status(200).json(messages);
 
@@ -197,62 +221,54 @@ export const getMessagesForRoom = async (req: Request, res: Response) => {
 
 // Handle file upload for a room
 export const uploadFile = async (req: Request, res: Response) => {
-    // TODO: Add authentication middleware and check if user is participant
-    const userId = 1; // Placeholder
+    const userId = req.user?.user_id;
     const roomId = parseInt(req.params.roomId, 10);
 
+    if (!userId || !req.user?.full_name) {
+        return res.status(401).json({ message: 'User not authenticated or user details missing.' });
+    }
     if (isNaN(roomId)) {
         return res.status(400).json({ message: 'Invalid room ID.' });
     }
-
     if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded.' });
     }
 
     try {
         // Optional: Verify user is participant first
+        const participantResult = await executeQuery('SELECT 1 FROM room_participants WHERE room_id = $1 AND user_id = $2', [roomId, userId]);
+        if (participantResult.rows.length === 0) {
+            const roomPrivacyResult = await executeQuery('SELECT is_public FROM rooms WHERE room_id = $1', [roomId]);
+            if (roomPrivacyResult.rows.length === 0 || !roomPrivacyResult.rows[0].is_public) {
+                return res.status(403).json({ message: 'Access denied. You cannot upload to this private room.' });
+            }
+        }
 
         const file = req.file;
-        const fileUrl = `/uploads/${file.filename}`; // Relative URL path
-        const messageType = file.mimetype.startsWith('image/') ? 'image' : 'pdf';
+        const fileUrl = `/uploads/${file.filename}`;
+        const messageType = file.mimetype.startsWith('image/') ? 'image' : (file.mimetype === 'application/pdf' ? 'pdf' : 'file');
 
-        // 1. Save message reference to database
-        const newMessage = await prisma.message.create({
-            data: {
-                room_id: roomId,
-                sender_id: userId,
-                message_type: messageType,
-                message_text: file.originalname, // Store original filename as text
-                file_url: fileUrl,
-            },
-             include: { // Include sender details for broadcasting
-                sender: { select: { user_id: true, full_name: true } }
-            }
-        });
+        const newMessageResult = await executeQuery(
+            `INSERT INTO messages (room_id, sender_id, message_type, message_text, file_url)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING message_id, room_id, sender_id, message_type, message_text, file_url, sent_at, is_edited`,
+            [roomId, userId, messageType, file.originalname, fileUrl]
+        );
 
-        // Eğer sender null ise, JSON uyumluluğu için boş obje olarak set et
-        if (!newMessage.sender || typeof newMessage.sender !== "object") {
-            newMessage.sender = { user_id: 0, full_name: "" };
-        }
-        // 2. Broadcast message to all clients in the room via WebSocket
+        const newMessage = {
+            ...newMessageResult.rows[0],
+            sender: { user_id: userId, full_name: req.user.full_name } // Add sender info for broadcast
+        };
+
         const roomIdentifier = `room_${roomId}`;
-        // Need access to the io instance. This is tricky here.
-        // Option 1: Pass io instance down (complex)
-        // Option 2: Emit an event that server.ts listens for (better separation)
-        // Option 3: (Simplest for now) Import io directly (tight coupling) - Let's avoid this.
-        // For now, we'll just return the message, WebSocket broadcast needs refactoring. - REFACTORED!
-        console.log(`File uploaded for room ${roomIdentifier}, message saved:`, newMessage);
-        // Broadcast the new file message via WebSocket
-        const io = req.app.get('io') as SocketIOServer; // Get io instance from app settings
+        const io = req.app.get('io') as SocketIOServer;
         io.to(roomIdentifier).emit('newMessage', newMessage);
         console.log(`File message broadcasted to room ${roomIdentifier}`);
 
-
-        res.status(201).json({ message: 'File uploaded successfully', messageData: newMessage }); // Return message data as well
+        res.status(201).json({ message: 'File uploaded successfully', messageData: newMessage });
 
     } catch (error) {
         console.error(`Error uploading file for room ${roomId}:`, error);
-        // Clean up uploaded file if DB save fails? (More advanced error handling)
         res.status(500).json({ message: 'Internal server error uploading file.' });
     }
 };

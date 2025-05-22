@@ -205,22 +205,34 @@ const uploadFile = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
         const fileUrl = `/uploads/${file.filename}`; // Relative URL path
         const messageType = file.mimetype.startsWith('image/') ? 'image' : 'pdf';
         // 1. Save message reference to database
-        const newMessage = yield db_1.default.message.create({
-            data: {
-                room_id: roomId,
-                sender_id: userId,
-                message_type: messageType,
-                message_text: file.originalname, // Store original filename as text
-                file_url: fileUrl,
-            },
-            include: {
-                sender: { select: { user_id: true, full_name: true } }
+        const newMessageResult = yield db_1.default.query(
+            'INSERT INTO messages (room_id, sender_id, message_type, message_text, file_url) VALUES ($1, $2, $3, $4, $5) RETURNING message_id, room_id, sender_id, message_text, message_type, file_url, sent_at, is_edited',
+            [roomId, userId, messageType, file.originalname, fileUrl]
+        );
+        const newMessage = newMessageResult.rows[0];
+
+        // Fetch sender info separately if needed for the response structure
+        let senderInfo = null;
+        if (newMessage.sender_id) {
+            const senderResult = yield db_1.default.query('SELECT user_id, full_name FROM users WHERE user_id = $1', [newMessage.sender_id]);
+            if (senderResult.rows.length > 0) {
+                senderInfo = senderResult.rows[0];
             }
-        });
-        // Eğer sender null ise, JSON uyumluluğu için boş obje olarak set et
-        if (!newMessage.sender || typeof newMessage.sender !== "object") {
-            newMessage.sender = { user_id: 0, full_name: "" };
         }
+
+        // Combine newMessage data with sender info for the response
+        const newMessageWithSender = {
+            ...newMessage,
+            sender: senderInfo
+        };
+
+        // Eğer sender null ise, JSON uyumluluğu için boş obje olarak set et
+        if (!newMessageWithSender.sender || typeof newMessageWithSender.sender !== "object") {
+            newMessageWithSender.sender = { user_id: 0, full_name: "" };
+        }
+
+        // Use newMessageWithSender for broadcasting and response
+        const messageToBroadcast = newMessageWithSender;
         // 2. Broadcast message to all clients in the room via WebSocket
         const roomIdentifier = `room_${roomId}`;
         // Need access to the io instance. This is tricky here.

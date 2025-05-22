@@ -29,20 +29,17 @@ router.post('/message', (req, res) => __awaiter(void 0, void 0, void 0, function
         // Convert messageId to number if it's a string
         const messageIdNum = typeof messageId === 'string' ? parseInt(messageId, 10) : messageId;
         // Check if the message exists
-        const messageExists = yield db_1.default.message.findUnique({
-            where: { message_id: messageIdNum }
-        });
+        const messageExistsResult = yield db_1.default.query('SELECT * FROM messages WHERE message_id = $1', [messageIdNum]);
+        const messageExists = messageExistsResult.rows.length > 0 ? messageExistsResult.rows[0] : null;
         if (!messageExists) {
             return res.status(404).json({ message: 'Message not found' });
         }
         // Create the report
-        const report = yield db_1.default.report.create({
-            data: {
-                message_id: messageIdNum,
-                reported_by: reportedBy ? parseInt(reportedBy, 10) : null,
-                reason: reason || null
-            }
-        });
+        const reportResult = yield db_1.default.query(
+            'INSERT INTO reports (message_id, reported_by, reason) VALUES ($1, $2, $3) RETURNING *',
+            [messageIdNum, reportedBy ? parseInt(reportedBy, 10) : null, reason || null]
+        );
+        const report = reportResult.rows[0];
         return res.status(201).json({
             message: 'Message reported successfully',
             report
@@ -59,14 +56,32 @@ router.post('/message', (req, res) => __awaiter(void 0, void 0, void 0, function
  */
 router.get('/', (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const reports = yield db_1.default.report.findMany({
-            include: {
-                message: true,
-                reporter: {
-                    select: { user_id: true, full_name: true, email: true }
-                }
-            }
-        });
+        const reportsResult = yield db_1.default.query(
+            'SELECT r.*, m.message_id AS message_message_id, m.room_id AS message_room_id, m.sender_id AS message_sender_id, m.message_text AS message_message_text, m.message_type AS message_message_type, m.file_url AS message_file_url, m.sent_at AS message_sent_at, m.is_edited AS message_is_edited, u.user_id AS reporter_user_id, u.full_name AS reporter_full_name, u.email AS reporter_email FROM reports r LEFT JOIN messages m ON r.message_id = m.message_id LEFT JOIN users u ON r.reported_by = u.user_id'
+        );
+        // Map the flat result back to a nested structure similar to Prisma's include
+        const reports = reportsResult.rows.map(row => ({
+            report_id: row.report_id,
+            message_id: row.message_id,
+            reported_by: row.reported_by,
+            reason: row.reason,
+            created_at: row.created_at,
+            message: row.message_message_id ? {
+                message_id: row.message_message_id,
+                room_id: row.message_room_id,
+                sender_id: row.message_sender_id,
+                message_text: row.message_message_text,
+                message_type: row.message_message_type,
+                file_url: row.message_file_url,
+                sent_at: row.message_sent_at,
+                is_edited: row.message_is_edited,
+            } : null,
+            reporter: row.reporter_user_id ? {
+                user_id: row.reporter_user_id,
+                full_name: row.reporter_full_name,
+                email: row.reporter_email,
+            } : null,
+        }));
         return res.status(200).json(reports);
     }
     catch (error) {

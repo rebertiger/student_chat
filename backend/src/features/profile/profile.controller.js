@@ -23,32 +23,42 @@ const getUserProfile = (req, res) => __awaiter(void 0, void 0, void 0, function*
         // Auth middleware'den gelen kullanıcı bilgilerini kullan
         const userId = req.user.user_id;
         // First get the user to ensure it exists
-        const user = yield db_1.default.user.findUnique({
-            where: { user_id: userId },
-            include: {
-                profile: true // Include the profile relation
-            }
-        });
+        const userResult = yield db_1.default.query('SELECT u.*, up.bio, up.profile_picture FROM users u LEFT JOIN user_profiles up ON u.user_id = up.user_id WHERE u.user_id = $1', [userId]);
+        const user = userResult.rows.length > 0 ? userResult.rows[0] : null;
+
+        // Map profile data if exists
+        if (user) {
+            user.profile = user.bio !== undefined || user.profile_picture !== undefined ? {
+                user_id: user.user_id,
+                bio: user.bio,
+                profile_picture: user.profile_picture
+            } : null;
+            // Clean up temporary fields
+            delete user.bio;
+            delete user.profile_picture;
+        }
         if (!user) {
             return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
         }
         // If user exists but profile doesn't, create an empty profile
         if (!user.profile) {
             // Create a new profile for the user
-            yield db_1.default.userProfile.create({
-                data: {
-                    user_id: userId,
-                    bio: null,
-                    profile_picture: null
-                }
-            });
+            yield db_1.default.query('INSERT INTO user_profiles (user_id, bio, profile_picture) VALUES ($1, NULL, NULL)', [userId]);
             // Fetch the user again with the newly created profile
-            const updatedUser = yield db_1.default.user.findUnique({
-                where: { user_id: userId },
-                include: {
-                    profile: true
-                }
-            });
+            const updatedUserResult = yield db_1.default.query('SELECT u.*, up.bio, up.profile_picture FROM users u LEFT JOIN user_profiles up ON u.user_id = up.user_id WHERE u.user_id = $1', [userId]);
+            const updatedUser = updatedUserResult.rows.length > 0 ? updatedUserResult.rows[0] : null;
+
+            // Map profile data if exists
+            if (updatedUser) {
+                updatedUser.profile = updatedUser.bio !== undefined || updatedUser.profile_picture !== undefined ? {
+                    user_id: updatedUser.user_id,
+                    bio: updatedUser.bio,
+                    profile_picture: updatedUser.profile_picture
+                } : null;
+                // Clean up temporary fields
+                delete updatedUser.bio;
+                delete updatedUser.profile_picture;
+            }
             if (!updatedUser || !updatedUser.profile) {
                 return res.status(500).json({ message: 'Profil oluşturulurken bir hata oluştu' });
             }
@@ -80,45 +90,46 @@ const updateUserProfile = (req, res) => __awaiter(void 0, void 0, void 0, functi
         const userId = req.user.user_id;
         const { username, university, department, profilePictureUrl, bio } = req.body;
         // First check if user exists
-        const user = yield db_1.default.user.findUnique({
-            where: { user_id: userId },
-            include: {
-                profile: true
-            }
-        });
+        const userResult = yield db_1.default.query('SELECT u.*, up.bio, up.profile_picture FROM users u LEFT JOIN user_profiles up ON u.user_id = up.user_id WHERE u.user_id = $1', [userId]);
+        const user = userResult.rows.length > 0 ? userResult.rows[0] : null;
+
+        // Map profile data if exists
+        if (user) {
+            user.profile = user.bio !== undefined || user.profile_picture !== undefined ? {
+                user_id: user.user_id,
+                bio: user.bio,
+                profile_picture: user.profile_picture
+            } : null;
+            // Clean up temporary fields
+            delete user.bio;
+            delete user.profile_picture;
+        }
         if (!user) {
             return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
         }
         // If profile doesn't exist, create it
         if (!user.profile) {
-            yield db_1.default.userProfile.create({
-                data: {
-                    user_id: userId,
-                    profile_picture: profilePictureUrl || null,
-                    bio: bio || null
-                }
-            });
+            yield db_1.default.query('INSERT INTO user_profiles (user_id, profile_picture, bio) VALUES ($1, $2, $3)', [userId, profilePictureUrl || null, bio || null]);
         }
         else {
             // Update existing profile
-            yield db_1.default.userProfile.update({
-                where: { user_id: userId },
-                data: {
-                    profile_picture: profilePictureUrl !== undefined ? profilePictureUrl : user.profile.profile_picture,
-                    bio: bio !== undefined ? bio : user.profile.bio
-                }
-            });
+            yield db_1.default.query('UPDATE user_profiles SET profile_picture = COALESCE($2, profile_picture), bio = COALESCE($3, bio) WHERE user_id = $1', [userId, profilePictureUrl, bio]);
         }
         // Update user fields if provided
         if (username || university || department) {
-            yield db_1.default.user.update({
-                where: { user_id: userId },
-                data: {
-                    full_name: username || undefined, // Update full_name instead of username
-                    university: university || undefined,
-                    department: department || undefined
-                }
-            });
+            const updateFields = [];
+            const updateValues = [];
+            let paramIndex = 1;
+
+            if (username !== undefined) { updateFields.push(`full_name = $${paramIndex++}`); updateValues.push(username); }
+            if (university !== undefined) { updateFields.push(`university = $${paramIndex++}`); updateValues.push(university); }
+            if (department !== undefined) { updateFields.push(`department = $${paramIndex++}`); updateValues.push(department); }
+
+            if (updateFields.length > 0) {
+                const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE user_id = $${paramIndex}`; // Last param is userId
+                updateValues.push(userId);
+                yield db_1.default.query(updateQuery, updateValues);
+            }
         }
         res.status(200).json({ message: 'Profil başarıyla güncellendi' });
     }
