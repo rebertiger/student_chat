@@ -24,12 +24,26 @@ class _CreateRoomPageState extends State<CreateRoomPage> {
 
   void _createRoom() {
     if (_formKey.currentState!.validate()) {
+      final subjectIdText = _subjectController.text.trim();
+      int? subjectId;
+
+      if (subjectIdText.isNotEmpty) {
+        subjectId = int.tryParse(subjectIdText);
+        if (subjectId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please enter a valid subject ID (number)'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+
       context.read<RoomCubit>().createRoom(
             roomName: _roomNameController.text.trim(),
             isPublic: _isPublic,
-            subjectId: _subjectController.text.trim().isNotEmpty
-                ? int.tryParse(_subjectController.text.trim())
-                : null,
+            subjectId: subjectId,
           );
     }
   }

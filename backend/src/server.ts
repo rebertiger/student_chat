@@ -4,11 +4,10 @@ import { Server as SocketIOServer } from 'socket.io';
 // import multer from 'multer'; // Removed - now in multer.config.ts
 import path from 'path'; // Import path
 import fs from 'fs'; // Import fs to ensure uploads directory exists
-import prisma from './db'; // Import the Prisma client instance
+import pool from './db'; // Import the database connection
 import authRoutes from './features/auth/auth.routes'; // Import auth routes
 import roomRoutes from './features/rooms/room.routes'; // Import room routes
 import profileRoutes from './features/profile/profile.routes'; // Import profile routes
-import reportRoutes from './features/reports/report.routes'; // Import report routes
 
 const app = express();
 const server = http.createServer(app);
@@ -48,8 +47,6 @@ app.get('/', (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/profile', profileRoutes);
-app.use('/api/reports', reportRoutes); // Add the new reports route
-// Example: app.use('/api/messages', messageRoutes);
 
 // --- Socket.IO Connection Handling ---
 io.on('connection', (socket) => {
@@ -90,32 +87,27 @@ io.on('connection', (socket) => {
         try {
             // 1. Save message to database
             console.log(`[Socket ${socket.id}] Attempting to save message to DB...`); // Added log
-            // Eğer senderFullName gönderildiyse, özel bir mesaj nesnesi oluştur
-            let messageData = {
-                room_id: parseInt(roomId, 10),
-                sender_id: actualSenderId,
-                message_text: messageType === 'text' ? messageText : fileUrl,
-                message_type: messageType,
-                file_url: messageType !== 'text' ? fileUrl : null
+            // Save message using raw SQL
+            const result = await pool.query(
+                `INSERT INTO messages (room_id, sender_id, message_type, message_text, file_url)
+                 VALUES ($1, $2, $3, $4, $5)
+                 RETURNING *`,
+                [roomId, actualSenderId, messageType, messageType === 'text' ? messageText : null, messageType !== 'text' ? fileUrl : null]
+            );
+
+            const newMessage = result.rows[0];
+            
+            // Get sender's full name
+            const userResult = await pool.query(
+                'SELECT full_name FROM users WHERE user_id = $1',
+                [actualSenderId]
+            );
+
+            newMessage.sender = {
+                user_id: actualSenderId,
+                full_name: senderFullName || userResult.rows[0]?.full_name || 'Unknown User'
             };
-            
-            const newMessage = await prisma.message.create({
-                data: messageData,
-                include: { // Include sender details for broadcasting
-                    sender: { select: { user_id: true, full_name: true } }
-                }
-            });
-            
-            // Eğer frontend'den senderFullName geldiyse ve sender null değilse, veritabanından gelen değeri değiştir
-            if (senderFullName && newMessage.sender) {
-                newMessage.sender.full_name = senderFullName;
-            } else if (senderFullName && !newMessage.sender) {
-                // Eğer sender null ise, yeni bir sender objesi oluştur
-                newMessage.sender = {
-                    user_id: actualSenderId,
-                    full_name: senderFullName
-                };
-            }
+
             console.log(`[Socket ${socket.id}] Message saved successfully (ID: ${newMessage.message_id})`); // Added log
 
             // 2. Broadcast message to all clients in the room
@@ -155,7 +147,7 @@ process.on('SIGTERM', () => {
     console.log('SIGTERM signal received: closing HTTP server');
     server.close(() => {
         console.log('HTTP server closed');
-        prisma.$disconnect(); // Disconnect Prisma
+        pool.end();
     });
 });
 
@@ -163,6 +155,6 @@ process.on('SIGINT', () => {
     console.log('SIGINT signal received: closing HTTP server');
     server.close(() => {
         console.log('HTTP server closed');
-        prisma.$disconnect(); // Disconnect Prisma
+        pool.end();
     });
 });

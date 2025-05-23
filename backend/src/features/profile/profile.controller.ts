@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import prisma from '../../db';
+import pool from '../../db';
 
 /**
  * Get user profile
@@ -7,60 +7,54 @@ import prisma from '../../db';
  */
 export const getUserProfile = async (req: Request, res: Response) => {
     try {
-        // Auth middleware'den gelen kullanıcı bilgilerini kullan
         const userId = req.user!.user_id;
 
-        // First get the user to ensure it exists
-        const user = await prisma.user.findUnique({
-            where: { user_id: userId },
-            include: {
-                profile: true // Include the profile relation
-            }
-        });
+        // Get user with profile
+        const userResult = await pool.query(
+            `SELECT u.*, up.*
+             FROM users u
+             LEFT JOIN user_profiles up ON u.user_id = up.user_id
+             WHERE u.user_id = $1`,
+            [userId]
+        );
+
+        const user = userResult.rows[0];
 
         if (!user) {
             return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
         }
 
         // If user exists but profile doesn't, create an empty profile
-        if (!user.profile) {
-            // Create a new profile for the user
-            await prisma.userProfile.create({
-                data: {
-                    user_id: userId,
-                    bio: null,
-                    profile_picture: null
-                }
-            });
-            
-            // Fetch the user again with the newly created profile
-            const updatedUser = await prisma.user.findUnique({
-                where: { user_id: userId },
-                include: {
-                    profile: true
-                }
-            });
-            
-            if (!updatedUser || !updatedUser.profile) {
+        if (!user.profile_id) {
+            const newProfileResult = await pool.query(
+                `INSERT INTO user_profiles (user_id, bio, profile_picture)
+                 VALUES ($1, NULL, NULL)
+                 RETURNING *`,
+                [userId]
+            );
+
+            if (!newProfileResult.rows[0]) {
                 return res.status(500).json({ message: 'Profil oluşturulurken bir hata oluştu' });
             }
-            
-            user.profile = updatedUser.profile;
+
+            user.profile_id = newProfileResult.rows[0].profile_id;
+            user.bio = null;
+            user.profile_picture = null;
         }
 
         // Format the response to match the frontend expectations
         const profileResponse = {
-            username: user.full_name, // User model has full_name, not username
+            username: user.full_name,
             university: user.university,
             department: user.department,
-            profilePictureUrl: user.profile.profile_picture,
-            bio: user.profile.bio
+            profilePictureUrl: user.profile_picture,
+            bio: user.bio
         };
 
         res.status(200).json(profileResponse);
     } catch (error) {
         console.error('Error fetching user profile:', error);
-        res.status(500).json({ message: 'Profil bilgileri alınırken bir hata oluştu' });
+        res.status(500).json({ message: 'Internal server error' });
     }
 };
 
@@ -70,58 +64,26 @@ export const getUserProfile = async (req: Request, res: Response) => {
  */
 export const updateUserProfile = async (req: Request, res: Response) => {
     try {
-        // Auth middleware'den gelen kullanıcı bilgilerini kullan
         const userId = req.user!.user_id;
-        
-        const { username, university, department, profilePictureUrl, bio } = req.body;
+        const { bio, profilePictureUrl } = req.body;
 
-        // First check if user exists
-        const user = await prisma.user.findUnique({
-            where: { user_id: userId },
-            include: {
-                profile: true
-            }
-        });
+        // Update or insert profile
+        const result = await pool.query(
+            `INSERT INTO user_profiles (user_id, bio, profile_picture)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (user_id) DO UPDATE
+             SET bio = $2, profile_picture = $3
+             RETURNING *`,
+            [userId, bio, profilePictureUrl]
+        );
 
-        if (!user) {
-            return res.status(404).json({ message: 'Kullanıcı bulunamadı' });
-        }
-
-        // If profile doesn't exist, create it
-        if (!user.profile) {
-            await prisma.userProfile.create({
-                data: {
-                    user_id: userId,
-                    profile_picture: profilePictureUrl || null,
-                    bio: bio || null
-                }
-            });
-        } else {
-            // Update existing profile
-            await prisma.userProfile.update({
-                where: { user_id: userId },
-                data: {
-                    profile_picture: profilePictureUrl !== undefined ? profilePictureUrl : user.profile.profile_picture,
-                    bio: bio !== undefined ? bio : user.profile.bio
-                }
-            });
-        }
-
-        // Update user fields if provided
-        if (username || university || department) {
-            await prisma.user.update({
-                where: { user_id: userId },
-                data: { 
-                    full_name: username || undefined, // Update full_name instead of username
-                    university: university || undefined,
-                    department: department || undefined
-                }
-            });
+        if (!result.rows[0]) {
+            return res.status(500).json({ message: 'Profil güncellenirken bir hata oluştu' });
         }
 
         res.status(200).json({ message: 'Profil başarıyla güncellendi' });
     } catch (error) {
         console.error('Error updating user profile:', error);
-        res.status(500).json({ message: 'Profil güncellenirken bir hata oluştu' });
+        res.status(500).json({ message: 'Internal server error' });
     }
 };

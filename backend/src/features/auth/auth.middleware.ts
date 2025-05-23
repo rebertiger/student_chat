@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import prisma from '../../db';
+import pool from '../../db';
 
 // JWT secret key - Bu değer normalde environment variable'dan alınmalıdır
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -34,15 +34,12 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
         // Token'ı doğrula
         const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
 
-        // Kullanıcıyı veritabanından bul
-        const user = await prisma.user.findUnique({
-            where: { user_id: decoded.userId },
-            select: {
-                user_id: true,
-                email: true,
-                full_name: true
-            }
-        });
+        // Kullanıcıyı veritabanından bul (raw SQL)
+        const userResult = await pool.query(
+            'SELECT user_id, email, full_name FROM users WHERE user_id = $1',
+            [decoded.userId]
+        );
+        const user = userResult.rows[0];
 
         if (!user) {
             return res.status(401).json({ message: 'Geçersiz kullanıcı' });

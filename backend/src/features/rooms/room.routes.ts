@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getRooms, createRoom, getRoomById, joinRoom, getMessagesForRoom, uploadFile } from './room.controller'; // Add uploadFile
 import { upload } from '../../middleware/multer.config'; // Correct import path for upload middleware
+import { authenticateToken } from '../../middleware/auth.middleware';
 
 // TODO: Import authentication middleware later
 
@@ -8,27 +9,27 @@ const router = Router();
 
 // GET /api/rooms - Get list of public rooms
 // TODO: Add auth middleware if needed to get user-specific rooms
-router.get('/', getRooms);
+router.get('/', authenticateToken, getRooms);
 
 // POST /api/rooms - Create a new room
 // TODO: Add auth middleware to protect this route and get user ID
-router.post('/', createRoom);
+router.post('/', authenticateToken, createRoom);
 
 // GET /api/rooms/:roomId - Get details for a specific room
 // TODO: Add auth middleware to check if user can access the room
-router.get('/:roomId', getRoomById);
+router.get('/:roomId', authenticateToken, getRoomById);
 
 // POST /api/rooms/:roomId/join - Join a specific room
 // TODO: Add auth middleware
-router.post('/:roomId/join', joinRoom);
+router.post('/:roomId/join', authenticateToken, joinRoom);
 
 // GET /api/rooms/:roomId/messages - Get messages for a specific room
 // TODO: Add auth middleware
-router.get('/:roomId/messages', getMessagesForRoom);
+router.get('/:roomId/messages', authenticateToken, getMessagesForRoom);
 
 // POST /api/rooms/:roomId/files - Upload a file to a room
 // TODO: Add auth middleware
-router.post('/:roomId/files', upload.single('file'), uploadFile); // Use upload middleware for single file named 'file'
+router.post('/:roomId/files', authenticateToken, upload.single('file'), uploadFile); // Use upload middleware for single file named 'file'
 
 // TODO: Add routes for leaving a room, etc.
 

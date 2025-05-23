@@ -245,48 +245,39 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<void> sendFileMessage(
       {required int roomId, required String filePath}) async {
-    // Optional: Check network connectivity first
     try {
-      // Kullanıcı bilgilerini al
+      // Get user info
       final String? senderFullName = _userService.getCurrentUserFullName();
       final int? senderId = _userService.getCurrentUserId();
 
-      // Dosya yüklendikten sonra, Socket.IO üzerinden kullanıcı bilgilerini içeren bir mesaj gönder
+      // Upload the file first
       final ChatMessageModel uploadedMessage =
           await remoteDataSource.uploadFile(
         roomId: roomId,
         filePath: filePath,
       );
 
-      // Dosya yüklendikten sonra, Socket.IO üzerinden kullanıcı bilgilerini içeren bir mesaj gönder
-      if (_socket != null && _socket!.connected) {
-        _socket!.emit('sendMessage', {
-          'roomId': roomId,
-          'messageText': uploadedMessage.messageText,
-          'messageType': 'file',
-          'fileUrl': uploadedMessage.fileUrl,
-          'senderFullName': senderFullName,
-          'senderId': senderId,
-        });
-      }
-      print(
-          "ChatRepository: File uploaded successfully, message ID: ${uploadedMessage.messageId}");
-      // Optionally, could manually add the returned message to the stream controller
-      // if immediate UI update without WebSocket broadcast is desired (less ideal).
-      // _messageStreamController?.add(uploadedMessage);
+      // Do NOT emit a sendMessage event after file upload!
+      // The backend already broadcasts the file message after upload.
+      // if (_socket != null && _socket!.connected) {
+      //   _socket!.emit('sendMessage', {
+      //     'roomId': roomId,
+      //     'messageType': uploadedMessage.messageType,
+      //     'fileUrl': uploadedMessage.fileUrl,
+      //     'messageText': uploadedMessage.messageText, // This will be the filename
+      //     'senderFullName': senderFullName,
+      //     'senderId': senderId,
+      //   });
+      // }
     } on ServerException catch (e) {
-      // Handle or re-throw specific exceptions
       print("ChatRepository: Error uploading file: ${e.message}");
       throw ServerException(message: e.message);
     } catch (e, stackTrace) {
-      // Add stackTrace
       print("ChatRepository: Unexpected error uploading file.");
       print("Error Type: ${e.runtimeType}");
       print("Error Details: $e");
-      print("Stack Trace: $stackTrace"); // Log the stack trace
-      throw ServerException(
-          message:
-              'Unexpected error uploading file: $e'); // Include original error in message
+      print("Stack Trace: $stackTrace");
+      throw ServerException(message: 'Unexpected error uploading file: $e');
     }
   }
 

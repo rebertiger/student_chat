@@ -61,25 +61,23 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
     required String roomName,
     int? subjectId,
     bool? isPublic,
-    int? createdBy, // Oda oluşturan kullanıcının ID'si
-    String? creatorName, // Oda oluşturan kullanıcının adı
+    int? createdBy,
+    String? creatorName,
   }) async {
     try {
-      // TODO: Add authentication headers if required by backend middleware later
       final response = await dioClient.post(
         '/rooms',
         data: {
           'room_name': roomName,
           'subject_id': subjectId,
           'is_public': isPublic,
-          'created_by': createdBy, // Kullanıcı ID'sini gönder
-          'creator_full_name':
-              creatorName, // Kullanıcı adını gönder - backend'in beklediği anahtar adı
+          'created_by': createdBy,
+          'creator_full_name': creatorName,
         },
       );
 
       if (response.statusCode == 201) {
-        // Assuming the API returns { "message": "...", "room": { ... } }
+        // The response now contains { message: "...", room: { ... } }
         return RoomModel.fromJson(
             response.data['room'] as Map<String, dynamic>);
       } else {
@@ -101,10 +99,9 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
   @override
   Future<void> joinRoom({required int roomId}) async {
     try {
-      // TODO: Add authentication headers if required by backend middleware later
       final response = await dioClient.post('/rooms/$roomId/join');
 
-      // Expect 200 OK on success (or if already joined)
+      // Both new join and already-participating cases return 200
       if (response.statusCode != 200) {
         throw ServerException(
             message: 'Failed to join room: ${response.statusCode}');

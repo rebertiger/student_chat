@@ -1,6 +1,6 @@
 import express from 'express';
 import { Request, Response } from 'express';
-import prisma from '../../db';
+import pool from '../../db';
 
 const router = express.Router();
 
@@ -21,22 +21,24 @@ router.post('/message', async (req: Request, res: Response) => {
     const messageIdNum = typeof messageId === 'string' ? parseInt(messageId, 10) : messageId;
 
     // Check if the message exists
-    const messageExists = await prisma.message.findUnique({
-      where: { message_id: messageIdNum }
-    });
+    const messageResult = await pool.query(
+      'SELECT * FROM messages WHERE message_id = $1',
+      [messageIdNum]
+    );
+    const messageExists = messageResult.rows[0];
 
     if (!messageExists) {
       return res.status(404).json({ message: 'Message not found' });
     }
 
     // Create the report
-    const report = await prisma.report.create({
-      data: {
-        message_id: messageIdNum,
-        reported_by: reportedBy ? parseInt(reportedBy, 10) : null,
-        reason: reason || null
-      }
-    });
+    const reportResult = await pool.query(
+      `INSERT INTO reports (message_id, reported_by, reason)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [messageIdNum, reportedBy ? parseInt(reportedBy, 10) : null, reason || null]
+    );
+    const report = reportResult.rows[0];
 
     return res.status(201).json({
       message: 'Message reported successfully',
@@ -54,15 +56,16 @@ router.post('/message', async (req: Request, res: Response) => {
  */
 router.get('/', async (_req: Request, res: Response) => {
   try {
-    const reports = await prisma.report.findMany({
-      include: {
-        message: true,
-        reporter: {
-          select: { user_id: true, full_name: true, email: true }
-        }
-      }
-    });
-    
+    const reportsResult = await pool.query(
+      `SELECT r.*, 
+              m.message_text, m.message_type, m.file_url, m.room_id, m.sender_id,
+              u.user_id as reporter_user_id, u.full_name as reporter_full_name, u.email as reporter_email
+         FROM reports r
+    LEFT JOIN messages m ON r.message_id = m.message_id
+    LEFT JOIN users u ON r.reported_by = u.user_id
+    ORDER BY r.created_at DESC`
+    );
+    const reports = reportsResult.rows;
     return res.status(200).json(reports);
   } catch (error) {
     console.error('Error fetching reports:', error);
