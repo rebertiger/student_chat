@@ -65,7 +65,13 @@ export const getUserProfile = async (req: Request, res: Response) => {
 export const updateUserProfile = async (req: Request, res: Response) => {
     try {
         const userId = req.user!.user_id;
-        const { bio, profilePictureUrl } = req.body;
+        const { username, university, department, bio, profilePictureUrl } = req.body;
+
+        // Update users table for full_name, university, department
+        await pool.query(
+            `UPDATE users SET full_name = $1, university = $2, department = $3 WHERE user_id = $4`,
+            [username, university, department, userId]
+        );
 
         // Update or insert profile
         const result = await pool.query(
