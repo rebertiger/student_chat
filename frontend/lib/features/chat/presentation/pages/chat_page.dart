@@ -183,14 +183,6 @@ class _ChatViewState extends State<ChatView> {
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         elevation: 2,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {
-              // Room settings or additional actions
-            },
-          ),
-        ],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -264,19 +256,52 @@ class _ChatViewState extends State<ChatView> {
                                     MediaQuery.of(context).size.width * 0.75,
                               ),
                               decoration: BoxDecoration(
-                                color: isMe ? Colors.deepPurple : Colors.white,
-                                borderRadius: BorderRadius.circular(16),
+                                gradient: isMe
+                                    ? const LinearGradient(
+                                        colors: [
+                                          Color(0xFF8E2DE2),
+                                          Color(0xFF4A00E0)
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                    : const LinearGradient(
+                                        colors: [
+                                          Color(0xFFF8F8F8),
+                                          Color(0xFFEDEDED)
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                borderRadius: BorderRadius.only(
+                                  topLeft: Radius.circular(isMe ? 16 : 4),
+                                  topRight: Radius.circular(isMe ? 4 : 16),
+                                  bottomLeft: const Radius.circular(16),
+                                  bottomRight: const Radius.circular(16),
+                                ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 5,
-                                    offset: const Offset(0, 2),
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
                                 ],
+                                border: isMe
+                                    ? null
+                                    : Border.all(
+                                        color:
+                                            Colors.deepPurple.withOpacity(0.08),
+                                        width: 1),
                               ),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
+                                horizontal: 18,
+                                vertical: 14,
+                              ),
+                              margin: EdgeInsets.only(
+                                top: 6,
+                                bottom: 6,
+                                left: isMe ? 40 : 0,
+                                right: isMe ? 0 : 40,
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,7 +314,7 @@ class _ChatViewState extends State<ChatView> {
                                         style: TextStyle(
                                           color: isMe
                                               ? Colors.white70
-                                              : Colors.grey[600],
+                                              : Colors.deepPurple,
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -303,6 +328,29 @@ class _ChatViewState extends State<ChatView> {
                                     ),
                                     child:
                                         _buildMessageContent(context, message),
+                                  ),
+                                  // Move the report button below the message content, outside the message bubble if desired
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.flag_outlined,
+                                            size: 16),
+                                        tooltip: 'Report Message',
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () {
+                                          ReportBottomSheet.show(
+                                            context,
+                                            messageId: message.messageId,
+                                            chatCubit:
+                                                context.read<ChatCubit>(),
+                                            messageText: message.messageText,
+                                            senderName: message.senderFullName,
+                                          );
+                                        },
+                                      )
+                                    ],
                                   ),
                                 ],
                               ),
