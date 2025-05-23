@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/di/injection_container.dart'; // Import GetIt
+import '../../../../core/di/injection_container.dart';
 import '../cubit/profile_cubit.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -9,7 +9,6 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      // Create ProfileCubit using GetIt
       create: (_) => sl<ProfileCubit>()..loadProfile(),
       child: const ProfileView(),
     );
@@ -33,7 +32,6 @@ class _ProfileViewState extends State<ProfileView> {
   @override
   void initState() {
     super.initState();
-    // Initialize controllers - they will be updated by the BlocBuilder
     _usernameController = TextEditingController();
     _universityController = TextEditingController();
     _departmentController = TextEditingController();
@@ -56,7 +54,6 @@ class _ProfileViewState extends State<ProfileView> {
             university: _universityController.text,
             department: _departmentController.text,
             bio: _bioController.text,
-            // Profile picture update needs separate handling (e.g., file picker)
           );
     }
   }
@@ -65,31 +62,50 @@ class _ProfileViewState extends State<ProfileView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile Settings'),
+        title: const Text(
+          'Profile Settings',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: Colors.deepPurple,
+        elevation: 2,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: BlocConsumer<ProfileCubit, ProfileState>(
         listener: (context, state) {
           if (state is ProfileError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: ${state.message}')),
+              SnackBar(
+                content: Text('Error: ${state.message}'),
+                backgroundColor: Colors.red,
+              ),
             );
           } else if (state is ProfileUpdateError) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Update Error: ${state.message}')),
+              SnackBar(
+                content: Text('Update Error: ${state.message}'),
+                backgroundColor: Colors.red,
+              ),
             );
           } else if (state is ProfileUpdateSuccess) {
-            // Or listen for ProfileLoaded after update
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Profile updated successfully!')),
+              const SnackBar(
+                content: Text('Profile updated successfully!'),
+                backgroundColor: Colors.green,
+              ),
             );
           }
         },
         builder: (context, state) {
           if (state is ProfileLoading || state is ProfileInitial) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(
+                color: Colors.deepPurple,
+              ),
+            );
           } else if (state is ProfileLoaded) {
-            // Update controllers only if the state data is different
-            // This prevents cursor jumping during typing
             if (_usernameController.text != state.username) {
               _usernameController.text = state.username;
             }
@@ -103,109 +119,233 @@ class _ProfileViewState extends State<ProfileView> {
               _bioController.text = state.bio ?? '';
             }
 
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: ListView(
-                  // Use ListView for scrollability
-                  children: [
-                    Center(
-                      child: Stack(
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Stack(
                         children: [
-                          CircleAvatar(
-                            radius: 50,
-                            backgroundImage: state.profilePictureUrl != null
-                                ? NetworkImage(state.profilePictureUrl!)
-                                : null,
-                            child: state.profilePictureUrl == null
-                                ? const Icon(Icons.person, size: 50)
-                                : null,
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              radius: 60,
+                              backgroundColor: Colors.grey[200],
+                              backgroundImage: state.profilePictureUrl != null
+                                  ? NetworkImage(state.profilePictureUrl!)
+                                  : null,
+                              child: state.profilePictureUrl == null
+                                  ? const Icon(
+                                      Icons.person,
+                                      size: 60,
+                                      color: Colors.grey,
+                                    )
+                                  : null,
+                            ),
                           ),
                           Positioned(
                             bottom: 0,
                             right: 0,
-                            child: IconButton(
-                              icon: const Icon(Icons.camera_alt),
-                              onPressed: () {
-                                // TODO: Implement profile picture update logic
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.deepPurple,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
+                              ),
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.camera_alt,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
                                       content: Text(
-                                          'Profile picture update not implemented yet.')),
-                                );
-                              },
+                                        'Profile picture update coming soon!',
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _usernameController,
-                      decoration: const InputDecoration(labelText: 'Username'),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your username';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _universityController,
-                      decoration:
-                          const InputDecoration(labelText: 'University'),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your university';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _departmentController,
-                      decoration:
-                          const InputDecoration(labelText: 'Department'),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter your department';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _bioController,
-                      decoration: const InputDecoration(labelText: 'Bio'),
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed:
-                          (state is ProfileUpdating) ? null : _saveProfile,
-                      child: (state is ProfileUpdating)
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Save Changes'),
-                    ),
-                  ],
+                      const SizedBox(height: 32),
+                      _buildTextField(
+                        controller: _usernameController,
+                        label: 'Username',
+                        icon: Icons.person_outline,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your username';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _universityController,
+                        label: 'University',
+                        icon: Icons.school_outlined,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your university';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _departmentController,
+                        label: 'Department',
+                        icon: Icons.business_outlined,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your department';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _bioController,
+                        label: 'Bio',
+                        icon: Icons.edit_note_outlined,
+                        maxLines: 3,
+                        hintText: 'Tell us about yourself...',
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: (state is ProfileUpdating)
+                              ? null
+                              : _saveProfile,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.deepPurple,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
+                          ),
+                          child: (state is ProfileUpdating)
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Save Changes',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
           } else if (state is ProfileError) {
             return Center(
-                child: Text('Failed to load profile: ${state.message}'));
-          } else {
-            // Handle other states like ProfileUpdating, ProfileUpdateError if needed
-            // Or just show the loaded state during update
-            return const Center(child: Text('An unexpected error occurred.'));
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red[300],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Failed to load profile: ${state.message}',
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () =>
+                        context.read<ProfileCubit>().loadProfile(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('Try Again'),
+                  ),
+                ],
+              ),
+            );
           }
+          return const Center(
+            child: Text('An unexpected error occurred.'),
+          );
         },
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? Function(String?)? validator,
+    int maxLines = 1,
+    String? hintText,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hintText,
+        prefixIcon: Icon(icon, color: Colors.deepPurple),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.grey),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.deepPurple),
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+      validator: validator,
+      maxLines: maxLines,
     );
   }
 }

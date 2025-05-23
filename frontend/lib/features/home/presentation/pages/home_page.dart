@@ -1,26 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/di/injection_container.dart'; // Import GetIt
-import '../../../chat/presentation/pages/chat_page.dart'; // Import ChatPage
-import '../cubit/room_cubit.dart'; // Import RoomCubit
-import 'create_room_page.dart'; // Import CreateRoomPage
+import '../../../../core/di/injection_container.dart';
+import '../../../chat/presentation/pages/chat_page.dart';
+import '../cubit/room_cubit.dart';
+import 'create_room_page.dart';
 
-// Main screen after login, displaying the list of chat rooms
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Provide RoomCubit instance
     return BlocProvider(
-      create: (_) =>
-          sl<RoomCubit>()..loadRooms(), // Create and load rooms initially
+      create: (_) => sl<RoomCubit>()..loadRooms(),
       child: const HomeView(),
     );
   }
 }
 
-// The actual view that builds based on RoomState
 class HomeView extends StatelessWidget {
   const HomeView({super.key});
 
@@ -28,110 +24,278 @@ class HomeView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chat Rooms'),
-        // TODO: Add logout button or profile access actions
+        title: const Text(
+          'Study Rooms',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: Colors.deepPurple,
+        elevation: 2,
         actions: [
           IconButton(
-            onPressed: () {
-              Navigator.pushNamed(context, '/profile');
-            },
-            icon: Icon(Icons.person_2),
+            icon: const Icon(Icons.person_outline, color: Colors.white),
+            onPressed: () => Navigator.pushNamed(context, '/profile'),
           ),
           IconButton(
-              onPressed: () {/* Logout logic */}, icon: Icon(Icons.logout)),
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () {
+              // TODO: Implement logout logic
+              Navigator.of(context).pushReplacementNamed('/login');
+            },
+          ),
         ],
       ),
       body: BlocBuilder<RoomCubit, RoomState>(
         builder: (context, state) {
           if (state is RoomLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(
+                color: Colors.deepPurple,
+              ),
+            );
           } else if (state is RoomLoaded) {
             if (state.rooms.isEmpty) {
-              return const Center(
-                  child: Text('No public rooms available. Create one!'));
-            }
-            // Display the list of rooms
-            return ListView.builder(
-              itemCount: state.rooms.length,
-              itemBuilder: (context, index) {
-                final room = state.rooms[index];
-                return ListTile(
-                  title: Text(room.roomName),
-                  subtitle: Text(
-                    'Created by: ${room.creatorName ?? 'Unknown'} ${room.subjectName != null ? '(${room.subjectName})' : ''}',
-                  ),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () async {
-                    // Make onTap async
-                    // Call joinRoom from the cubit
-                    final success =
-                        await context.read<RoomCubit>().joinRoom(room.roomId);
-
-                    // Check if the widget is still mounted before navigating or showing snackbar
-                    if (!context.mounted) return;
-
-                    if (success) {
-                      // Navigate to the ChatPage
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ChatPage(
-                            roomId: room.roomId,
-                            roomName: room.roomName,
-                          ),
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.meeting_room_outlined,
+                      size: 80,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No Study Rooms Available',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Create your first room to get started!',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () => Navigator.pushNamed(context, '/create-room'),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Create Room'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
                         ),
-                      );
-                    } else {
-                      // Error is likely already shown by the Cubit's BlocListener if we add one,
-                      // but we can show a specific one here if needed.
-                      // ScaffoldMessenger.of(context)
-                      //   ..hideCurrentSnackBar()
-                      //   ..showSnackBar(const SnackBar(content: Text('Failed to join room.')));
-                    }
-                  },
-                );
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return RefreshIndicator(
+              onRefresh: () async {
+                context.read<RoomCubit>().loadRooms();
               },
+              color: Colors.deepPurple,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: state.rooms.length,
+                itemBuilder: (context, index) {
+                  final room = state.rooms[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: InkWell(
+                      onTap: () async {
+                        final success = await context
+                            .read<RoomCubit>()
+                            .joinRoom(room.roomId);
+
+                        if (!context.mounted) return;
+
+                        if (success) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatPage(
+                                roomId: room.roomId,
+                                roomName: room.roomName,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  room.isPublic
+                                      ? Icons.public
+                                      : Icons.lock_outline,
+                                  color: Colors.deepPurple,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    room.roomName,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: room.isPublic
+                                        ? Colors.green[100]
+                                        : Colors.orange[100],
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    room.isPublic ? 'Public' : 'Private',
+                                    style: TextStyle(
+                                      color: room.isPublic
+                                          ? Colors.green[700]
+                                          : Colors.orange[700],
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (room.subjectName != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                room.subjectName!,
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.person_outline,
+                                  size: 16,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  room.creatorName ?? 'Unknown',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 16,
+                                  color: Colors.grey[400],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
             );
           } else if (state is RoomError) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Error loading rooms: ${state.message}'),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red[300],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Error: ${state.message}',
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 16,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
                     onPressed: () => context.read<RoomCubit>().loadRooms(),
-                    child: const Text('Retry'),
-                  )
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Try Again'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             );
           }
-          // Initial state or unexpected state
           return const Center(child: Text('Loading rooms...'));
         },
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // Navigate to CreateRoomPage using MaterialPageRoute
-          // Pass the existing RoomCubit instance using BlocProvider.value
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => BlocProvider.value(
-                value: context.read<RoomCubit>(), // Pass the existing cubit
+                value: context.read<RoomCubit>(),
                 child: const CreateRoomPage(),
               ),
             ),
           );
         },
-        child: const Icon(Icons.add),
-        tooltip: 'Create Room',
+        backgroundColor: Colors.deepPurple,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          'Create Room',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }
 }
-
-// Add the import for CreateRoomPage if it's not already there
-// (Assuming it might be needed after the change, although it's likely already imported)
-// import 'create_room_page.dart';

@@ -173,133 +173,230 @@ class _ChatViewState extends State<ChatView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.roomName)),
-      body: Column(
-        children: [
-          // Message List Area
-          Expanded(
-            child: BlocConsumer<ChatCubit, ChatState>(
-              listener: (context, state) {
-                if (state is ChatLoaded) {
-                  // Scroll to bottom when new messages are loaded/added
-                  _scrollToBottom();
-                } else if (state is ChatError) {
-                  // Show error messages if needed (e.g., for sending failures)
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                        SnackBar(content: Text('Error: ${state.message}')));
-                }
-              },
-              builder: (context, state) {
-                if (state is ChatLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                } else if (state is ChatLoaded) {
-                  if (state.messages.isEmpty) {
-                    return const Center(
-                        child: Text('No messages yet. Send one!'));
-                  }
-                  // Build the list of messages
-                  return ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(8.0),
-                    itemCount: state.messages.length,
-                    itemBuilder: (context, index) {
-                      final message = state.messages[index];
-                      // TODO: Create a proper ChatMessageWidget
-                      return Align(
-                        alignment: Alignment.centerLeft,
-                        child: Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      message.senderFullName ?? 'Unknown User',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    // Report button
-                                    IconButton(
-                                      icon: const Icon(Icons.flag_outlined,
-                                          size: 16),
-                                      tooltip: 'Report Message',
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                      onPressed: () {
-                                        ReportBottomSheet.show(
-                                          context,
-                                          messageId: message.messageId,
-                                          chatCubit: context.read<ChatCubit>(),
-                                          messageText: message.messageText,
-                                          senderName: message.senderFullName,
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                // Display content based on type
-                                _buildMessageContent(context, message),
-                                const SizedBox(height: 4),
-                                Text(
-                                  // Format time nicely
-                                  TimeOfDay.fromDateTime(
-                                          message.sentAt.toLocal())
-                                      .format(context),
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                } else if (state is ChatError && state is! ChatLoaded) {
-                  // Show error only if not loaded
-                  return Center(child: Text('Error: ${state.message}'));
-                }
-                // Initial state
-                return const Center(child: Text('Connecting to chat...'));
-              },
-            ),
+      appBar: AppBar(
+        title: Text(
+          widget.roomName,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
           ),
-          // Input Area
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                // Attach button
-                IconButton(
-                  icon: const Icon(Icons.attach_file),
-                  onPressed: _attachFile, // Call the file picking method
-                  tooltip: 'Attach File',
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter message...',
-                      border: OutlineInputBorder(),
-                    ),
-                    onSubmitted: (_) =>
-                        _sendMessage(), // Send on keyboard submit
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: _sendMessage,
-                ),
-              ],
-            ),
+        ),
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            onPressed: () {
+              // Room settings or additional actions
+            },
           ),
         ],
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[100], // Light background for chat
+        ),
+        child: Column(
+          children: [
+            // Message List Area
+            Expanded(
+              child: BlocConsumer<ChatCubit, ChatState>(
+                listener: (context, state) {
+                  if (state is ChatLoaded) {
+                    // Scroll to bottom when new messages are loaded/added
+                    _scrollToBottom();
+                  } else if (state is ChatError) {
+                    // Show error messages if needed (e.g., for sending failures)
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(
+                          SnackBar(content: Text('Error: ${state.message}')));
+                  }
+                },
+                builder: (context, state) {
+                  if (state is ChatLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Colors.deepPurple,
+                      ),
+                    );
+                  } else if (state is ChatLoaded) {
+                    if (state.messages.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.chat_bubble_outline,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No messages yet. Start the conversation!',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    return ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(16.0),
+                      itemCount: state.messages.length,
+                      itemBuilder: (context, index) {
+                        final message = state.messages[index];
+                        final isMe = message.senderId ==
+                            'currentUserId'; // Replace with actual user ID check
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: Align(
+                            alignment: isMe
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Container(
+                              constraints: BoxConstraints(
+                                maxWidth:
+                                    MediaQuery.of(context).size.width * 0.75,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isMe ? Colors.deepPurple : Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 5,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (!isMe)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Text(
+                                        message.senderFullName ?? 'Unknown',
+                                        style: TextStyle(
+                                          color: isMe
+                                              ? Colors.white70
+                                              : Colors.grey[600],
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  DefaultTextStyle(
+                                    style: TextStyle(
+                                      color:
+                                          isMe ? Colors.white : Colors.black87,
+                                      fontSize: 16,
+                                    ),
+                                    child:
+                                        _buildMessageContent(context, message),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  } else if (state is ChatError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: Colors.red[300],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error: ${state.message}',
+                            style: const TextStyle(color: Colors.red),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return const Center(child: Text('Connecting to chat...'));
+                },
+              ),
+            ),
+            // Input Area
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 5,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16.0,
+                vertical: 12.0,
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.attach_file,
+                      color: Colors.deepPurple,
+                    ),
+                    onPressed: _attachFile,
+                    tooltip: 'Attach File',
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      decoration: InputDecoration(
+                        hintText: 'Type your message...',
+                        hintStyle: TextStyle(color: Colors.grey[400]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                      ),
+                      maxLines: null,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _sendMessage(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.send,
+                      color: Colors.deepPurple,
+                    ),
+                    onPressed: _sendMessage,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
