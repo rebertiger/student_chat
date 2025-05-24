@@ -3,6 +3,7 @@ import 'package:frontend/features/profile/data/datasources/profile_remote_data_s
 import 'package:frontend/features/profile/data/repositories/profile_repository_impl.dart';
 import 'package:frontend/features/profile/domain/repositories/profile_repository.dart';
 import 'package:get_it/get_it.dart';
+import 'package:http/http.dart' as http;
 
 // Core Services
 import '../services/user_service.dart';
@@ -20,6 +21,11 @@ import '../../features/chat/data/datasources/chat_remote_data_source.dart';
 import '../../features/chat/data/repositories/chat_repository.dart';
 import '../../features/profile/presentation/cubit/profile_cubit.dart'; // Import ProfileCubit and Repository
 
+// Features - Subjects
+import '../../features/subjects/data/datasources/subjects_remote_data_source.dart';
+import '../../features/subjects/domain/repositories/subjects_repository.dart';
+import '../../features/subjects/presentation/cubit/subjects_cubit.dart';
+
 // Service Locator instance
 final sl = GetIt.instance;
 
@@ -27,6 +33,9 @@ Future<void> init() async {
   // --- Core ---
   // Register UserService for global user state
   sl.registerLazySingleton<UserService>(() => UserService());
+
+  // Register http.Client for SubjectsRemoteDataSource
+  sl.registerLazySingleton<http.Client>(() => http.Client());
 
   // Register Dio (HTTP client)
   sl.registerLazySingleton<Dio>(() {
@@ -99,6 +108,30 @@ Future<void> init() async {
       () => ProfileRepositoryImpl(remoteDataSource: sl()));
   // Register the Cubit, depending on the repository
   sl.registerFactory(() => ProfileCubit(sl()));
+
+  // Subjects Feature
+  sl.registerLazySingleton<SubjectsRemoteDataSource>(
+    () => SubjectsRemoteDataSourceImpl(
+      client: sl(),
+      userService: sl(),
+      baseUrl: sl(),
+    ),
+  );
+
+  sl.registerLazySingleton<SubjectsRepository>(
+    () => SubjectsRepositoryImpl(
+      remoteDataSource: sl(),
+    ),
+  );
+
+  sl.registerFactory(
+    () => SubjectsCubit(
+      repository: sl(),
+    ),
+  );
+
+  // Register baseUrl for SubjectsRemoteDataSource
+  sl.registerLazySingleton<String>(() => 'http://localhost:3000');
 
   // --- External ---
   // (Already registered Dio above)

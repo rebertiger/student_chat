@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../cubit/profile_cubit.dart';
+import '../../../subjects/presentation/cubit/subjects_cubit.dart';
+import '../../../subjects/presentation/widgets/subjects_management_widget.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -232,13 +234,17 @@ class _ProfileViewState extends State<ProfileView> {
                         hintText: 'Tell us about yourself...',
                       ),
                       const SizedBox(height: 32),
+                      BlocProvider(
+                        create: (_) => sl<SubjectsCubit>(),
+                        child: const SubjectsManagementWidget(),
+                      ),
+                      const SizedBox(height: 32),
                       SizedBox(
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: (state is ProfileUpdating)
-                              ? null
-                              : _saveProfile,
+                          onPressed:
+                              (state is ProfileUpdating) ? null : _saveProfile,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.deepPurple,
                             foregroundColor: Colors.white,
@@ -288,8 +294,7 @@ class _ProfileViewState extends State<ProfileView> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: () =>
-                        context.read<ProfileCubit>().loadProfile(),
+                    onPressed: () => context.read<ProfileCubit>().loadProfile(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple,
                       foregroundColor: Colors.white,

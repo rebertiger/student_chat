@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/features/subjects/presentation/widgets/subject_selector_widget.dart';
 import '../cubit/room_cubit.dart';
+import '../../../subjects/presentation/cubit/subjects_cubit.dart';
+import 'package:get_it/get_it.dart';
+import '../../../subjects/domain/entities/subject.dart';
 
 class CreateRoomPage extends StatefulWidget {
   const CreateRoomPage({super.key});
@@ -12,33 +16,18 @@ class CreateRoomPage extends StatefulWidget {
 class _CreateRoomPageState extends State<CreateRoomPage> {
   final _formKey = GlobalKey<FormState>();
   final _roomNameController = TextEditingController();
-  final _subjectController = TextEditingController();
   bool _isPublic = true;
+  Subject? _selectedSubject;
 
   @override
   void dispose() {
     _roomNameController.dispose();
-    _subjectController.dispose();
     super.dispose();
   }
 
   void _createRoom() {
     if (_formKey.currentState!.validate()) {
-      final subjectIdText = _subjectController.text.trim();
-      int? subjectId;
-
-      if (subjectIdText.isNotEmpty) {
-        subjectId = int.tryParse(subjectIdText);
-        if (subjectId == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please enter a valid subject ID (number)'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-      }
+      int? subjectId = _selectedSubject?.id;
 
       context.read<RoomCubit>().createRoom(
             roomName: _roomNameController.text.trim(),
@@ -127,18 +116,6 @@ class _CreateRoomPageState extends State<CreateRoomPage> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _subjectController,
-                    decoration: InputDecoration(
-                      labelText: 'Subject (Optional)',
-                      hintText: 'What will you study?',
-                      prefixIcon: const Icon(Icons.subject),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 24),
                   Container(
                     decoration: BoxDecoration(
@@ -181,6 +158,18 @@ class _CreateRoomPageState extends State<CreateRoomPage> {
                           },
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  BlocProvider(
+                    create: (_) => GetIt.I<SubjectsCubit>(),
+                    child: SubjectSelectorWidget(
+                      onSubjectSelected: (subject) {
+                        setState(() {
+                          _selectedSubject = subject;
+                        });
+                      },
+                      selectedSubject: _selectedSubject,
                     ),
                   ),
                   const SizedBox(height: 32),

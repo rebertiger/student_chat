@@ -8,6 +8,7 @@ import pool from './db'; // Import the database connection
 import authRoutes from './features/auth/auth.routes'; // Import auth routes
 import roomRoutes from './features/rooms/room.routes'; // Import room routes
 import profileRoutes from './features/profile/profile.routes'; // Import profile routes
+import subjectsRoutes from './features/subjects/subjects.routes';
 
 const app = express();
 const server = http.createServer(app);
@@ -47,6 +48,7 @@ app.get('/', (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/subjects', subjectsRoutes);
 
 // --- Socket.IO Connection Handling ---
 io.on('connection', (socket) => {
