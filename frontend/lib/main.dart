@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/features/profile/presentation/pages/profile_page.dart';
-import 'core/di/injection_container.dart' as di; // Import DI setup
-import 'features/auth/presentation/pages/login_page.dart'; // Import LoginPage
-import 'features/auth/presentation/pages/register_page.dart'; // Import RegisterPage
-import 'features/home/presentation/pages/home_page.dart'; // Import HomePage
-import 'features/home/presentation/pages/create_room_page.dart'; // Import CreateRoomPage
+import 'core/di/injection_container.dart' as di;
+import 'features/auth/presentation/pages/login_page.dart';
+import 'features/auth/presentation/pages/register_page.dart';
+import 'features/home/presentation/pages/home_page.dart';
+import 'features/home/presentation/pages/create_room_page.dart';
 
 Future<void> main() async {
   // Make main async
