@@ -13,6 +13,9 @@ abstract class ChatRepository {
   /// Fetches historical messages for a given room.
   Future<List<ChatMessageModel>> getMessageHistory(int roomId);
 
+  /// Fetches total message count for a given room.
+  Future<int> getMessageCount(int roomId);
+
   /// Sends a text message (likely via WebSocket).
   Future<void> sendTextMessage({required int roomId, required String text});
 
@@ -188,6 +191,17 @@ class ChatRepositoryImpl implements ChatRepository {
       final messages = await remoteDataSource.getMessageHistory(roomId);
       // Map to domain entities if needed
       return messages;
+    } on ServerException catch (e) {
+      // Handle or re-throw specific exceptions
+      throw ServerException(message: e.message);
+    }
+  }
+
+  @override
+  Future<int> getMessageCount(int roomId) async {
+    try {
+      final count = await remoteDataSource.getMessageCount(roomId);
+      return count;
     } on ServerException catch (e) {
       // Handle or re-throw specific exceptions
       throw ServerException(message: e.message);

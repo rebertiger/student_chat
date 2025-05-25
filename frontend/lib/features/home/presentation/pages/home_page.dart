@@ -85,7 +85,16 @@ class HomeView extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
-                      onPressed: () => Navigator.pushNamed(context, '/create-room'),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CreateRoomPage(
+                              roomCubit: context.read<RoomCubit>(),
+                            ),
+                          ),
+                        );
+                      },
                       icon: const Icon(Icons.add),
                       label: const Text('Create Room'),
                       style: ElevatedButton.styleFrom(
@@ -279,9 +288,8 @@ class HomeView extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => BlocProvider.value(
-                value: context.read<RoomCubit>(),
-                child: const CreateRoomPage(),
+              builder: (_) => CreateRoomPage(
+                roomCubit: context.read<RoomCubit>(),
               ),
             ),
           );

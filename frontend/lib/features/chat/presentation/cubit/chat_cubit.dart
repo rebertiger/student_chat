@@ -29,12 +29,28 @@ class ChatCubit extends Cubit<ChatState> {
     emit(ChatLoading());
     try {
       final messages = await chatRepository.getMessageHistory(currentRoomId);
-      emit(ChatLoaded(messages: messages));
+      final totalMessages = await chatRepository.getMessageCount(currentRoomId);
+      emit(ChatLoaded(messages: messages, totalMessages: totalMessages));
     } on ServerException catch (e) {
       emit(ChatError(message: e.message));
     } catch (e) {
       emit(ChatError(
           message: 'Failed to load message history: ${e.toString()}'));
+    }
+  }
+
+  // Method to get total message count
+  Future<void> loadMessageCount() async {
+    try {
+      final totalMessages = await chatRepository.getMessageCount(currentRoomId);
+      if (state is ChatLoaded) {
+        emit((state as ChatLoaded).copyWithTotalMessages(totalMessages));
+      }
+    } on ServerException catch (e) {
+      // Silently fail, don't change state for count errors
+      print('Failed to load message count: ${e.message}');
+    } catch (e) {
+      print('Failed to load message count: ${e.toString()}');
     }
   }
 

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:frontend/features/profile/presentation/pages/profile_page.dart';
 import 'core/di/injection_container.dart' as di;
 import 'features/auth/presentation/pages/login_page.dart';
 import 'features/auth/presentation/pages/register_page.dart';
 import 'features/home/presentation/pages/home_page.dart';
-import 'features/home/presentation/pages/create_room_page.dart';
 
 Future<void> main() async {
   // Make main async
@@ -46,10 +46,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
         '/home': (context) => const HomePage(),
-        '/create-room': (context) =>
-            const CreateRoomPage(), // Add route for create room page
-        '/profile': (context) =>
-            const ProfilePage(), // Add route for profile page (for now, reuse home scree)
+        '/profile': (context) => const ProfilePage(),
       },
     );
   }

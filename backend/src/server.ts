@@ -9,6 +9,7 @@ import authRoutes from './features/auth/auth.routes'; // Import auth routes
 import roomRoutes from './features/rooms/room.routes'; // Import room routes
 import profileRoutes from './features/profile/profile.routes'; // Import profile routes
 import subjectsRoutes from './features/subjects/subjects.routes';
+import messageRoutes from './features/messages/message.routes'; // Import message routes
 
 const app = express();
 const server = http.createServer(app);
@@ -49,6 +50,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/subjects', subjectsRoutes);
+app.use('/api/messages', messageRoutes);
 
 // --- Socket.IO Connection Handling ---
 io.on('connection', (socket) => {

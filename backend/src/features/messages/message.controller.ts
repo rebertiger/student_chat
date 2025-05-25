@@ -14,7 +14,20 @@ export const getMessages = async (req: Request, res: Response) => {
             [roomId]
         );
 
-        res.status(200).json(result.rows);
+        // Get total message count for the room
+        const countResult = await pool.query(
+            `SELECT COUNT(*) as total_messages
+             FROM messages
+             WHERE room_id = $1`,
+            [roomId]
+        );
+
+        const totalMessages = parseInt(countResult.rows[0].total_messages, 10);
+
+        res.status(200).json({
+            messages: result.rows,
+            totalMessages: totalMessages
+        });
     } catch (error) {
         console.error('Error fetching messages:', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -92,4 +105,25 @@ export const reportMessage = async (req: Request, res: Response) => {
         console.error('Error reporting message:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
-}; 
+};
+
+// Get total message count for a room
+export const getMessageCount = async (req: Request, res: Response) => {
+    const { roomId } = req.params;
+
+    try {
+        const result = await pool.query(
+            `SELECT COUNT(*) as total_messages
+             FROM messages
+             WHERE room_id = $1`,
+            [roomId]
+        );
+
+        const totalMessages = parseInt(result.rows[0].total_messages, 10);
+
+        res.status(200).json({ totalMessages });
+    } catch (error) {
+        console.error('Error fetching message count:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};

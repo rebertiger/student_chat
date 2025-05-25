@@ -7,7 +7,12 @@ import 'package:get_it/get_it.dart';
 import '../../../subjects/domain/entities/subject.dart';
 
 class CreateRoomPage extends StatefulWidget {
-  const CreateRoomPage({super.key});
+  final RoomCubit roomCubit;
+
+  const CreateRoomPage({
+    super.key,
+    required this.roomCubit,
+  });
 
   @override
   State<CreateRoomPage> createState() => _CreateRoomPageState();
@@ -29,85 +34,59 @@ class _CreateRoomPageState extends State<CreateRoomPage> {
     if (_formKey.currentState!.validate()) {
       int? subjectId = _selectedSubject?.id;
 
-      context.read<RoomCubit>().createRoom(
-            roomName: _roomNameController.text.trim(),
-            isPublic: _isPublic,
-            subjectId: subjectId,
-          );
+      widget.roomCubit.createRoom(
+        roomName: _roomNameController.text.trim(),
+        isPublic: _isPublic,
+        subjectId: subjectId,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Create Study Room',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+    return BlocProvider.value(
+      value: widget.roomCubit,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            'Create Study Room',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
+          backgroundColor: Colors.deepPurple,
+          elevation: 2,
+          iconTheme: const IconThemeData(color: Colors.white),
         ),
-        backgroundColor: Colors.deepPurple,
-        elevation: 2,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: BlocListener<RoomCubit, RoomState>(
-        listener: (context, state) {
-          if (state is RoomError) {
-            ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(
-                SnackBar(
-                  content: Text('Creation Failed: ${state.message}'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-          } else if (state is RoomLoaded) {
-            Navigator.of(context).pop();
-          }
-        },
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
+        body: BlocListener<RoomCubit, RoomState>(
+          listener: (context, state) {
+            if (state is RoomError) {
+              ScaffoldMessenger.of(context)
+                ..hideCurrentSnackBar()
+                ..showSnackBar(
+                  SnackBar(
+                    content: Text('Creation Failed: ${state.message}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+            } else if (state is RoomLoaded) {
+              Navigator.of(context).pop();
+            }
+          },
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(
-                    Icons.meeting_room_outlined,
-                    size: 80,
-                    color: Colors.deepPurple,
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Create Your Study Room',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Set up a space for collaborative learning',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
                   TextFormField(
                     controller: _roomNameController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'Room Name',
-                      hintText: 'Enter a name for your study room',
-                      prefixIcon: const Icon(Icons.meeting_room_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.meeting_room),
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
@@ -117,47 +96,56 @@ class _CreateRoomPageState extends State<CreateRoomPage> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Room Privacy',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Room Settings',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        RadioListTile<bool>(
-                          title: const Text('Public Room'),
-                          subtitle:
-                              const Text('Anyone can join and participate'),
-                          value: true,
-                          groupValue: _isPublic,
-                          onChanged: (value) {
-                            setState(() {
-                              _isPublic = value!;
-                            });
-                          },
-                        ),
-                        RadioListTile<bool>(
-                          title: const Text('Private Room'),
-                          subtitle: const Text('Only invited members can join'),
-                          value: false,
-                          groupValue: _isPublic,
-                          onChanged: (value) {
-                            setState(() {
-                              _isPublic = value!;
-                            });
-                          },
-                        ),
-                      ],
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              const Icon(Icons.visibility),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Room Visibility',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                              const Spacer(),
+                              Switch(
+                                value: _isPublic,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _isPublic = value;
+                                  });
+                                },
+                                activeColor: Colors.deepPurple,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _isPublic
+                                ? 'Anyone can join this room'
+                                : 'Only invited users can join',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 32),

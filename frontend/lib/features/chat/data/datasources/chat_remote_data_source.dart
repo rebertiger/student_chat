@@ -11,6 +11,9 @@ abstract class ChatRemoteDataSource {
   /// Calls GET /api/rooms/:roomId/messages endpoint.
   Future<List<ChatMessageModel>> getMessageHistory(int roomId);
 
+  /// Calls GET /api/messages/:roomId/count endpoint to get total message count.
+  Future<int> getMessageCount(int roomId);
+
   /// Calls POST /api/rooms/:roomId/files endpoint to upload a file.
   /// Returns the newly created ChatMessageModel for the file.
   Future<ChatMessageModel> uploadFile(
@@ -37,13 +40,26 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     print("ChatRemoteDataSource: Fetching history for room $roomId");
     try {
       // TODO: Add authentication headers if required by backend middleware later
-      final response = await dioClient.get('/rooms/$roomId/messages');
+      final response = await dioClient.get('/messages/$roomId');
       if (response.statusCode == 200) {
-        final List<dynamic> messagesJson = response.data as List<dynamic>;
-        return messagesJson
-            .map((json) =>
-                ChatMessageModel.fromJson(json as Map<String, dynamic>))
-            .toList();
+        final data = response.data;
+        if (data is Map<String, dynamic> && data.containsKey('messages')) {
+          // New API format with messages and totalMessages
+          final List<dynamic> messagesJson = data['messages'] as List<dynamic>;
+          return messagesJson
+              .map((json) =>
+                  ChatMessageModel.fromJson(json as Map<String, dynamic>))
+              .toList();
+        } else if (data is List<dynamic>) {
+          // Old API format with just messages array
+          return data
+              .map((json) =>
+                  ChatMessageModel.fromJson(json as Map<String, dynamic>))
+              .toList();
+        } else {
+          throw ServerException(
+              message: 'Unexpected response format for messages');
+        }
       } else {
         throw ServerException(
             message: 'Failed to fetch messages: ${response.statusCode}');
@@ -56,6 +72,34 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     } catch (e) {
       throw ServerException(
           message: 'An unexpected error occurred fetching messages.');
+    }
+  }
+
+  @override
+  Future<int> getMessageCount(int roomId) async {
+    print("ChatRemoteDataSource: Fetching message count for room $roomId");
+    try {
+      final response = await dioClient.get('/messages/$roomId/count');
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data is Map<String, dynamic> && data.containsKey('totalMessages')) {
+          return data['totalMessages'] as int;
+        } else {
+          throw ServerException(
+              message: 'Unexpected response format for message count');
+        }
+      } else {
+        throw ServerException(
+            message: 'Failed to fetch message count: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      final message = e.response?.data['message'] as String? ??
+          e.message ??
+          'Unknown error fetching message count';
+      throw ServerException(message: message);
+    } catch (e) {
+      throw ServerException(
+          message: 'An unexpected error occurred fetching message count.');
     }
   }
 

@@ -174,11 +174,38 @@ class _ChatViewState extends State<ChatView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.roomName,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+        title: BlocBuilder<ChatCubit, ChatState>(
+          builder: (context, state) {
+            return Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.roomName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (state is ChatLoaded)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${state.totalMessages} messages',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
