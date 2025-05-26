@@ -4,6 +4,8 @@ import 'package:frontend/features/profile/data/repositories/profile_repository_i
 import 'package:frontend/features/profile/domain/repositories/profile_repository.dart';
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 
 // Core Services
 import '../services/user_service.dart';
@@ -41,27 +43,48 @@ Future<void> init() async {
   sl.registerLazySingleton<Dio>(() {
     final dio = Dio(
       BaseOptions(
-        // Replace with your actual backend URL
-        // For local development with Android emulator, use 10.0.2.2
-        // For local development with iOS simulator or physical device on same network, use your machine's local IP
-        baseUrl: 'http://localhost:3000/api', // Use localhost for iOS Simulator
-        connectTimeout: const Duration(milliseconds: 5000), // 5 seconds
-        receiveTimeout: const Duration(milliseconds: 3000), // 3 seconds
+        // Platform-specific base URL
+        baseUrl: Platform.isAndroid
+            ? 'http://10.0.2.2:3000/api' // Android emulator
+            : 'http://localhost:3000/api', // iOS simulator
+        connectTimeout: const Duration(seconds: 10), // Increased timeout
+        receiveTimeout: const Duration(seconds: 10), // Increased timeout
+        validateStatus: (status) {
+          return status != null && status < 500;
+        },
       ),
     );
 
-    // Auth token interceptor'ı ekle
+    // Add logging interceptor for debugging
+    if (kDebugMode) {
+      dio.interceptors.add(LogInterceptor(
+        requestBody: true,
+        responseBody: true,
+        error: true,
+      ));
+    }
+
+    // Auth token interceptor
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          // UserService'den token'ı al
+          if (kDebugMode) {
+            print('Making request to: ${options.uri}');
+          }
           final userService = sl<UserService>();
           final user = userService.getCurrentUser();
           if (user != null && user.token != null) {
-            // Token'ı Authorization header'ına ekle
             options.headers['Authorization'] = 'Bearer ${user.token}';
           }
           return handler.next(options);
+        },
+        onError: (DioException error, handler) {
+          if (kDebugMode) {
+            print('DioError: ${error.message}');
+            print('Error type: ${error.type}');
+            print('Error response: ${error.response}');
+          }
+          return handler.next(error);
         },
       ),
     );
@@ -131,7 +154,10 @@ Future<void> init() async {
   );
 
   // Register baseUrl for SubjectsRemoteDataSource
-  sl.registerLazySingleton<String>(() => 'http://localhost:3000');
+  sl.registerLazySingleton<String>(() => Platform.isAndroid
+          ? 'http://10.0.2.2:3000' // Android emulator
+          : 'http://localhost:3000' // iOS simulator
+      );
 
   // --- External ---
   // (Already registered Dio above)

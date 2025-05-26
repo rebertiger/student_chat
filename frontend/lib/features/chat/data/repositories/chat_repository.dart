@@ -1,6 +1,7 @@
 import 'dart:async'; // For StreamController, Stream
 // import 'package:web_socket_channel/web_socket_channel.dart'; // Removed
 import 'package:socket_io_client/socket_io_client.dart' as IO; // Added
+import 'dart:io' show Platform; // Add Platform import
 import '../../../../core/di/injection_container.dart'; // GetIt için
 import '../../../../core/services/user_service.dart'; // Kullanıcı servisi için
 import '../../../../features/auth/data/datasources/auth_remote_data_source.dart'; // For ServerException
@@ -48,12 +49,10 @@ class ChatRepositoryImpl implements ChatRepository {
   // Kullanıcı servisine erişim
   final UserService _userService = sl<UserService>();
 
-  // TODO: Get WebSocket URL from config/env
-  // Use ws://localhost:3000/ws for iOS simulator if backend is on localhost:3000
-  // Use ws://10.0.2.2:3000/ws for Android emulator
-  // Assuming the backend WebSocket server listens on the /ws path
-  // final String _webSocketUrl = 'ws://10.0.2.2:3000/ws'; // Changed to http for Socket.IO
-  final String _socketIoUrl = 'http://localhost:3000'; // Changed for Socket.IO
+  // Platform-specific Socket.IO URL
+  final String _socketIoUrl = Platform.isAndroid
+      ? 'http://10.0.2.2:3000' // Android emulator
+      : 'http://localhost:3000'; // iOS simulator
 
   ChatRepositoryImpl({
     required this.remoteDataSource,
