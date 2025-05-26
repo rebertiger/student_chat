@@ -15,8 +15,7 @@ abstract class RoomRemoteDataSource {
     required String roomName,
     int? subjectId,
     bool? isPublic,
-    int? createdBy, // Oda oluşturan kullanıcının ID'si
-    String? creatorName, // Oda oluşturan kullanıcının adı
+    int? createdBy,
   });
 
   /// Calls the POST /api/rooms/:roomId/join endpoint.
@@ -33,8 +32,7 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
   @override
   Future<List<RoomModel>> getRooms() async {
     try {
-      final response =
-          await dioClient.get('/rooms'); // GET request to /api/rooms
+      final response = await dioClient.get('/rooms');
 
       if (response.statusCode == 200) {
         final List<dynamic> roomListJson = response.data as List<dynamic>;
@@ -62,7 +60,6 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
     int? subjectId,
     bool? isPublic,
     int? createdBy,
-    String? creatorName,
   }) async {
     try {
       final response = await dioClient.post(
@@ -72,12 +69,10 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
           'subject_id': subjectId,
           'is_public': isPublic,
           'created_by': createdBy,
-          'creator_full_name': creatorName,
         },
       );
 
       if (response.statusCode == 201) {
-        // The response now contains { message: "...", room: { ... } }
         return RoomModel.fromJson(
             response.data['room'] as Map<String, dynamic>);
       } else {
@@ -101,12 +96,10 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
     try {
       final response = await dioClient.post('/rooms/$roomId/join');
 
-      // Both new join and already-participating cases return 200
       if (response.statusCode != 200) {
         throw ServerException(
             message: 'Failed to join room: ${response.statusCode}');
       }
-      // No specific data needed on success, void return
     } on DioException catch (e) {
       final message = e.response?.data['message'] as String? ??
           e.message ??

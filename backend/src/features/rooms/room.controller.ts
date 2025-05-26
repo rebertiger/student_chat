@@ -6,7 +6,10 @@ import pool from '../../db';
 export const getRooms = async (req: Request, res: Response) => {
     try {
         const result = await pool.query(
-            `SELECT r.*, s.name as subject_name, u.full_name as creator_name
+            `SELECT r.*, 
+                    s.name as subject_name, 
+                    u.full_name as creator_name,
+                    u.user_id as creator_id
              FROM rooms r
              LEFT JOIN subjects s ON r.subject_id = s.subject_id
              LEFT JOIN users u ON r.created_by = u.user_id
@@ -32,23 +35,12 @@ export const createRoom = async (req: Request, res: Response) => {
     }
 
     try {
-        // Get user's full name
-        const userResult = await pool.query(
-            'SELECT full_name FROM users WHERE user_id = $1',
-            [userId]
-        );
-
-        const user = userResult.rows[0];
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
         // Create room
         const roomResult = await pool.query(
-            `INSERT INTO rooms (room_name, subject_id, is_public, created_by, creator_full_name)
-             VALUES ($1, $2, $3, $4, $5)
+            `INSERT INTO rooms (room_name, subject_id, is_public, created_by)
+             VALUES ($1, $2, $3, $4)
              RETURNING *`,
-            [room_name, subject_id || null, is_public ?? true, userId, user.full_name]
+            [room_name, subject_id || null, is_public ?? true, userId]
         );
 
         const newRoom = roomResult.rows[0];
@@ -60,18 +52,20 @@ export const createRoom = async (req: Request, res: Response) => {
             [newRoom.room_id, userId]
         );
 
+        // Get the room with creator information
+        const roomWithCreator = await pool.query(
+            `SELECT r.*, s.name as subject_name, u.full_name as creator_name
+             FROM rooms r
+             LEFT JOIN subjects s ON r.subject_id = s.subject_id
+             LEFT JOIN users u ON r.created_by = u.user_id
+             WHERE r.room_id = $1`,
+            [newRoom.room_id]
+        );
+
         // Return the room data in the format expected by the frontend
         res.status(201).json({
             message: 'Room created successfully',
-            room: {
-                room_id: newRoom.room_id,
-                room_name: newRoom.room_name,
-                subject_id: newRoom.subject_id,
-                is_public: newRoom.is_public,
-                created_by: newRoom.created_by,
-                creator_full_name: newRoom.creator_full_name,
-                created_at: newRoom.created_at
-            }
+            room: roomWithCreator.rows[0]
         });
     } catch (error) {
         console.error('Error creating room:', error);

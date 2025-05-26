@@ -10,7 +10,6 @@ abstract class RoomRepository {
     int? subjectId,
     bool? isPublic,
     int? createdBy,
-    String? creatorName,
   });
   Future<void> joinRoom({required int roomId});
 }
@@ -44,7 +43,6 @@ class RoomRepositoryImpl implements RoomRepository {
     int? subjectId,
     bool? isPublic,
     int? createdBy,
-    String? creatorName,
   }) async {
     try {
       final newRoom = await remoteDataSource.createRoom(
@@ -52,7 +50,6 @@ class RoomRepositoryImpl implements RoomRepository {
         subjectId: subjectId,
         isPublic: isPublic,
         createdBy: createdBy,
-        creatorName: creatorName,
       );
       return newRoom;
     } on ServerException catch (e) {

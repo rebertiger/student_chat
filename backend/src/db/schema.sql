@@ -54,8 +54,7 @@ CREATE TABLE rooms (
     subject_id INTEGER REFERENCES subjects(subject_id),
     is_public BOOLEAN DEFAULT TRUE,
     created_by INTEGER REFERENCES users(user_id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    creator_full_name VARCHAR(255)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Room participants
