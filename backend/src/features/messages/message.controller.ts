@@ -14,11 +14,9 @@ export const getMessages = async (req: Request, res: Response) => {
             [roomId]
         );
 
-        // Get total message count for the room
+        // Get total message count using the database function
         const countResult = await pool.query(
-            `SELECT COUNT(*) as total_messages
-             FROM messages
-             WHERE room_id = $1`,
+            `SELECT count_room_messages($1) as total_messages`,
             [roomId]
         );
 
