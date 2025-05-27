@@ -4,6 +4,7 @@ import { Server as SocketIOServer } from 'socket.io';
 // import multer from 'multer'; // Removed - now in multer.config.ts
 import path from 'path'; // Import path
 import fs from 'fs'; // Import fs to ensure uploads directory exists
+import dotenv from 'dotenv';
 import pool from './db'; // Import the database connection
 import authRoutes from './features/auth/auth.routes'; // Import auth routes
 import roomRoutes from './features/rooms/room.routes'; // Import room routes
@@ -11,11 +12,14 @@ import profileRoutes from './features/profile/profile.routes'; // Import profile
 import subjectsRoutes from './features/subjects/subjects.routes';
 import messageRoutes from './features/messages/message.routes'; // Import message routes
 
+// Load environment variables
+dotenv.config();
+
 const app = express();
 const server = http.createServer(app);
 const io = new SocketIOServer(server, {
     cors: {
-        origin: "*", // Allow all origins for now (adjust for production)
+        origin: process.env.CORS_ORIGIN || "*",
         methods: ["GET", "POST"]
     },
     pingInterval: 25000, // Send pings every 25 seconds
@@ -25,7 +29,7 @@ const io = new SocketIOServer(server, {
 const PORT = process.env.PORT || 3000;
 
 // Define uploads directory path (still needed for static serving)
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+const UPLOADS_DIR = path.join(__dirname, '..', process.env.UPLOADS_DIR || 'uploads');
 // Ensure uploads directory exists (good practice to keep)
 if (!fs.existsSync(UPLOADS_DIR)) {
     fs.mkdirSync(UPLOADS_DIR, { recursive: true });
