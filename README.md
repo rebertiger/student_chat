@@ -50,28 +50,67 @@ Student Chat is a modern, full-stack chat application designed specifically for 
 - Flutter SDK
 - Node.js
 - npm or yarn
+- PostgreSQL Database
 - Prisma CLI
 
-### Installation
+### Environment Setup
 
 1. Clone the repository
 ```bash
 git clone https://github.com/yourusername/student_chat.git
 ```
 
-2. Frontend Setup
+2. Backend Setup
+```bash
+cd backend
+npm install
+
+# Create .env file from example
+cp .env.example .env
+
+# Edit .env file with your configuration
+# Required environment variables:
+# - DATABASE_URL: PostgreSQL connection string
+# - JWT_SECRET: Secret key for JWT tokens
+# - PORT: Server port (default: 3000)
+# - CORS_ORIGIN: Allowed origins for CORS
+# - UPLOADS_DIR: Directory for file uploads
+# - MAX_FILE_SIZE: Maximum file size in bytes
+
+# Generate Prisma client
+npx prisma generate
+
+# Start the server
+npm run dev
+```
+
+3. Frontend Setup
 ```bash
 cd frontend
 flutter pub get
 flutter run
 ```
 
-3. Backend Setup
-```bash
-cd backend
-npm install
-npx prisma generate
-npm run dev
+## 🔧 Environment Variables
+
+### Backend (.env)
+```env
+# Server Configuration
+PORT=3000
+
+# Database Configuration
+DATABASE_URL="postgresql://user:password@localhost:5432/student_chat"
+
+# JWT Configuration
+JWT_SECRET="your-secret-key"
+JWT_EXPIRES_IN="24h"
+
+# CORS Configuration
+CORS_ORIGIN="*"
+
+# File Upload Configuration
+UPLOADS_DIR="uploads"
+MAX_FILE_SIZE=5242880  # 5MB in bytes
 ```
 
 ## 🛠️ Tech Stack
@@ -88,7 +127,6 @@ npm run dev
   - Prisma
   - Express.js
 
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -98,3 +136,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
+
+<div align="center">
+  Made with ❤️ by [Your Name]
+</div>
