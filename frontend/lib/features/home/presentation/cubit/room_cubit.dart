@@ -70,4 +70,21 @@ class RoomCubit extends Cubit<RoomState> {
       return false;
     }
   }
+
+  // Method to delete a room
+  Future<void> deleteRoom({required int roomId}) async {
+    final currentState = state;
+    if (currentState is! RoomLoading) {
+      emit(RoomLoading());
+    }
+
+    try {
+      await roomRepository.deleteRoom(roomId: roomId);
+      await loadRooms(); // Reload the rooms list after deletion
+    } on ServerException catch (e) {
+      emit(RoomError(message: e.message));
+    } catch (e) {
+      emit(RoomError(message: 'An unexpected error occurred: ${e.toString()}'));
+    }
+  }
 }

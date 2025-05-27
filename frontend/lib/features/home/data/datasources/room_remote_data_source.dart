@@ -22,6 +22,11 @@ abstract class RoomRemoteDataSource {
   ///
   /// Throws a [ServerException] for all error codes.
   Future<void> joinRoom({required int roomId});
+
+  /// Calls the DELETE /api/rooms/:roomId endpoint.
+  ///
+  /// Throws a [ServerException] for all error codes.
+  Future<void> deleteRoom({required int roomId});
 }
 
 class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
@@ -108,6 +113,26 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
     } catch (e) {
       throw ServerException(
           message: 'An unexpected error occurred while joining room.');
+    }
+  }
+
+  @override
+  Future<void> deleteRoom({required int roomId}) async {
+    try {
+      final response = await dioClient.delete('/rooms/$roomId');
+
+      if (response.statusCode != 200) {
+        throw ServerException(
+            message: 'Failed to delete room: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      final message = e.response?.data['message'] as String? ??
+          e.message ??
+          'Unknown error deleting room';
+      throw ServerException(message: message);
+    } catch (e) {
+      throw ServerException(
+          message: 'An unexpected error occurred while deleting room.');
     }
   }
 }

@@ -12,6 +12,7 @@ abstract class RoomRepository {
     int? createdBy,
   });
   Future<void> joinRoom({required int roomId});
+  Future<void> deleteRoom({required int roomId});
 }
 
 // Implementation of the Room Repository
@@ -65,6 +66,15 @@ class RoomRepositoryImpl implements RoomRepository {
       // No return value needed
     } on ServerException catch (e) {
       // Handle or re-throw specific exceptions
+      throw ServerException(message: e.message);
+    }
+  }
+
+  @override
+  Future<void> deleteRoom({required int roomId}) async {
+    try {
+      await remoteDataSource.deleteRoom(roomId: roomId);
+    } on ServerException catch (e) {
       throw ServerException(message: e.message);
     }
   }

@@ -232,3 +232,35 @@ export const uploadFile = async (req: Request, res: Response) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
+// Delete a room (only by creator)
+export const deleteRoom = async (req: Request, res: Response) => {
+    const roomId = parseInt(req.params.roomId, 10);
+    const userId = req.user!.user_id;
+
+    if (isNaN(roomId)) {
+        return res.status(400).json({ message: 'Invalid room ID.' });
+    }
+
+    try {
+        // First check if the room exists and if the user is the creator
+        const roomResult = await pool.query(
+            'SELECT * FROM rooms WHERE room_id = $1 AND created_by = $2',
+            [roomId, userId]
+        );
+
+        if (roomResult.rows.length === 0) {
+            return res.status(403).json({ 
+                message: 'Room not found or you are not authorized to delete it.' 
+            });
+        }
+
+        // Delete the room (cascade will handle related records)
+        await pool.query('DELETE FROM rooms WHERE room_id = $1', [roomId]);
+
+        res.status(200).json({ message: 'Room deleted successfully' });
+    } catch (error) {
+        console.error(`Error deleting room ${roomId}:`, error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};

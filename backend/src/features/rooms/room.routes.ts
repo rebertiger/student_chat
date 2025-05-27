@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getRooms, createRoom, getRoomById, joinRoom, getMessagesForRoom, uploadFile } from './room.controller'; // Add uploadFile
+import { getRooms, createRoom, getRoomById, joinRoom, getMessagesForRoom, uploadFile, deleteRoom } from './room.controller'; // Add deleteRoom
 import { upload } from '../../middleware/multer.config'; // Correct import path for upload middleware
 import { authenticateToken } from '../../middleware/auth.middleware';
 
@@ -30,6 +30,9 @@ router.get('/:roomId/messages', authenticateToken, getMessagesForRoom);
 // POST /api/rooms/:roomId/files - Upload a file to a room
 // TODO: Add auth middleware
 router.post('/:roomId/files', authenticateToken, upload.single('file'), uploadFile); // Use upload middleware for single file named 'file'
+
+// DELETE /api/rooms/:roomId - Delete a room (only by creator)
+router.delete('/:roomId', authenticateToken, deleteRoom);
 
 // TODO: Add routes for leaving a room, etc.
 
