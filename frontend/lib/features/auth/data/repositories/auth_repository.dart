@@ -16,6 +16,8 @@ abstract class AuthRepository {
     required String email,
     required String password,
   });
+
+  Future<void> deleteUser();
 }
 
 // Implementation of the Auth Repository
@@ -82,6 +84,15 @@ class AuthRepositoryImpl implements AuthRepository {
     // } else {
     //   throw NetworkException();
     // }
+  }
+
+  @override
+  Future<void> deleteUser() async {
+    try {
+      await remoteDataSource.deleteUser();
+    } on ServerException catch (e) {
+      throw ServerException(message: e.message);
+    }
   }
 }
 

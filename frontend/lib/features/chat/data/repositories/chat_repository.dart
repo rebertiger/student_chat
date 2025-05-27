@@ -1,6 +1,7 @@
 import 'dart:async'; // For StreamController, Stream
 // import 'package:web_socket_channel/web_socket_channel.dart'; // Removed
 import 'package:socket_io_client/socket_io_client.dart' as IO; // Added
+import 'dart:io' show Platform; // Add Platform import
 import '../../../../core/di/injection_container.dart'; // GetIt için
 import '../../../../core/services/user_service.dart'; // Kullanıcı servisi için
 import '../../../../features/auth/data/datasources/auth_remote_data_source.dart'; // For ServerException
@@ -12,6 +13,9 @@ import '../models/report_model.dart';
 abstract class ChatRepository {
   /// Fetches historical messages for a given room.
   Future<List<ChatMessageModel>> getMessageHistory(int roomId);
+
+  /// Fetches total message count for a given room.
+  Future<int> getMessageCount(int roomId);
 
   /// Sends a text message (likely via WebSocket).
   Future<void> sendTextMessage({required int roomId, required String text});
@@ -45,12 +49,10 @@ class ChatRepositoryImpl implements ChatRepository {
   // Kullanıcı servisine erişim
   final UserService _userService = sl<UserService>();
 
-  // TODO: Get WebSocket URL from config/env
-  // Use ws://localhost:3000/ws for iOS simulator if backend is on localhost:3000
-  // Use ws://10.0.2.2:3000/ws for Android emulator
-  // Assuming the backend WebSocket server listens on the /ws path
-  // final String _webSocketUrl = 'ws://10.0.2.2:3000/ws'; // Changed to http for Socket.IO
-  final String _socketIoUrl = 'http://localhost:3000'; // Changed for Socket.IO
+  // Platform-specific Socket.IO URL
+  final String _socketIoUrl = Platform.isAndroid
+      ? 'http://10.0.2.2:3000' // Android emulator
+      : 'http://localhost:3000'; // iOS simulator
 
   ChatRepositoryImpl({
     required this.remoteDataSource,
@@ -195,6 +197,17 @@ class ChatRepositoryImpl implements ChatRepository {
   }
 
   @override
+  Future<int> getMessageCount(int roomId) async {
+    try {
+      final count = await remoteDataSource.getMessageCount(roomId);
+      return count;
+    } on ServerException catch (e) {
+      // Handle or re-throw specific exceptions
+      throw ServerException(message: e.message);
+    }
+  }
+
+  @override
   Future<void> sendTextMessage(
       {required int roomId, required String text}) async {
     // if (_channel == null || _currentRoomId != roomId) { // Changed
@@ -245,48 +258,39 @@ class ChatRepositoryImpl implements ChatRepository {
   @override
   Future<void> sendFileMessage(
       {required int roomId, required String filePath}) async {
-    // Optional: Check network connectivity first
     try {
-      // Kullanıcı bilgilerini al
+      // Get user info
       final String? senderFullName = _userService.getCurrentUserFullName();
       final int? senderId = _userService.getCurrentUserId();
 
-      // Dosya yüklendikten sonra, Socket.IO üzerinden kullanıcı bilgilerini içeren bir mesaj gönder
+      // Upload the file first
       final ChatMessageModel uploadedMessage =
           await remoteDataSource.uploadFile(
         roomId: roomId,
         filePath: filePath,
       );
 
-      // Dosya yüklendikten sonra, Socket.IO üzerinden kullanıcı bilgilerini içeren bir mesaj gönder
-      if (_socket != null && _socket!.connected) {
-        _socket!.emit('sendMessage', {
-          'roomId': roomId,
-          'messageText': uploadedMessage.messageText,
-          'messageType': 'file',
-          'fileUrl': uploadedMessage.fileUrl,
-          'senderFullName': senderFullName,
-          'senderId': senderId,
-        });
-      }
-      print(
-          "ChatRepository: File uploaded successfully, message ID: ${uploadedMessage.messageId}");
-      // Optionally, could manually add the returned message to the stream controller
-      // if immediate UI update without WebSocket broadcast is desired (less ideal).
-      // _messageStreamController?.add(uploadedMessage);
+      // Do NOT emit a sendMessage event after file upload!
+      // The backend already broadcasts the file message after upload.
+      // if (_socket != null && _socket!.connected) {
+      //   _socket!.emit('sendMessage', {
+      //     'roomId': roomId,
+      //     'messageType': uploadedMessage.messageType,
+      //     'fileUrl': uploadedMessage.fileUrl,
+      //     'messageText': uploadedMessage.messageText, // This will be the filename
+      //     'senderFullName': senderFullName,
+      //     'senderId': senderId,
+      //   });
+      // }
     } on ServerException catch (e) {
-      // Handle or re-throw specific exceptions
       print("ChatRepository: Error uploading file: ${e.message}");
       throw ServerException(message: e.message);
     } catch (e, stackTrace) {
-      // Add stackTrace
       print("ChatRepository: Unexpected error uploading file.");
       print("Error Type: ${e.runtimeType}");
       print("Error Details: $e");
-      print("Stack Trace: $stackTrace"); // Log the stack trace
-      throw ServerException(
-          message:
-              'Unexpected error uploading file: $e'); // Include original error in message
+      print("Stack Trace: $stackTrace");
+      throw ServerException(message: 'Unexpected error uploading file: $e');
     }
   }
 

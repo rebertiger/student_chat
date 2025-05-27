@@ -15,14 +15,18 @@ abstract class RoomRemoteDataSource {
     required String roomName,
     int? subjectId,
     bool? isPublic,
-    int? createdBy, // Oda oluşturan kullanıcının ID'si
-    String? creatorName, // Oda oluşturan kullanıcının adı
+    int? createdBy,
   });
 
   /// Calls the POST /api/rooms/:roomId/join endpoint.
   ///
   /// Throws a [ServerException] for all error codes.
   Future<void> joinRoom({required int roomId});
+
+  /// Calls the DELETE /api/rooms/:roomId endpoint.
+  ///
+  /// Throws a [ServerException] for all error codes.
+  Future<void> deleteRoom({required int roomId});
 }
 
 class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
@@ -33,8 +37,7 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
   @override
   Future<List<RoomModel>> getRooms() async {
     try {
-      final response =
-          await dioClient.get('/rooms'); // GET request to /api/rooms
+      final response = await dioClient.get('/rooms');
 
       if (response.statusCode == 200) {
         final List<dynamic> roomListJson = response.data as List<dynamic>;
@@ -61,25 +64,20 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
     required String roomName,
     int? subjectId,
     bool? isPublic,
-    int? createdBy, // Oda oluşturan kullanıcının ID'si
-    String? creatorName, // Oda oluşturan kullanıcının adı
+    int? createdBy,
   }) async {
     try {
-      // TODO: Add authentication headers if required by backend middleware later
       final response = await dioClient.post(
         '/rooms',
         data: {
           'room_name': roomName,
           'subject_id': subjectId,
           'is_public': isPublic,
-          'created_by': createdBy, // Kullanıcı ID'sini gönder
-          'creator_full_name':
-              creatorName, // Kullanıcı adını gönder - backend'in beklediği anahtar adı
+          'created_by': createdBy,
         },
       );
 
       if (response.statusCode == 201) {
-        // Assuming the API returns { "message": "...", "room": { ... } }
         return RoomModel.fromJson(
             response.data['room'] as Map<String, dynamic>);
       } else {
@@ -101,15 +99,12 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
   @override
   Future<void> joinRoom({required int roomId}) async {
     try {
-      // TODO: Add authentication headers if required by backend middleware later
       final response = await dioClient.post('/rooms/$roomId/join');
 
-      // Expect 200 OK on success (or if already joined)
       if (response.statusCode != 200) {
         throw ServerException(
             message: 'Failed to join room: ${response.statusCode}');
       }
-      // No specific data needed on success, void return
     } on DioException catch (e) {
       final message = e.response?.data['message'] as String? ??
           e.message ??
@@ -118,6 +113,26 @@ class RoomRemoteDataSourceImpl implements RoomRemoteDataSource {
     } catch (e) {
       throw ServerException(
           message: 'An unexpected error occurred while joining room.');
+    }
+  }
+
+  @override
+  Future<void> deleteRoom({required int roomId}) async {
+    try {
+      final response = await dioClient.delete('/rooms/$roomId');
+
+      if (response.statusCode != 200) {
+        throw ServerException(
+            message: 'Failed to delete room: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      final message = e.response?.data['message'] as String? ??
+          e.message ??
+          'Unknown error deleting room';
+      throw ServerException(message: message);
+    } catch (e) {
+      throw ServerException(
+          message: 'An unexpected error occurred while deleting room.');
     }
   }
 }

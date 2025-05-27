@@ -44,13 +44,16 @@ class ChatMessageModel extends Equatable {
           'Invalid message_id or room_id format in JSON: $json');
     }
 
+    // Try to get senderFullName from multiple possible locations
+    String? senderFullName = json['sender_full_name'] as String? ??
+        json['senderFullName'] as String? ??
+        safeGet<String>(json['sender'] as Map<String, dynamic>?, 'full_name');
+
     return ChatMessageModel(
       messageId: messageId,
       roomId: roomId,
       senderId: toInt(json['sender_id']),
-      // Assuming backend includes sender like: { sender: { full_name: '...' } }
-      senderFullName:
-          safeGet<String>(json['sender'] as Map<String, dynamic>?, 'full_name'),
+      senderFullName: senderFullName,
       messageType: json['message_type'] as String? ?? 'text',
       messageText: json['message_text'] as String?,
       fileUrl: json['file_url'] as String?,

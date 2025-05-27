@@ -28,4 +28,9 @@ class UserService {
   void clearCurrentUser() {
     _currentUser = null;
   }
+
+  /// Kullanıcının auth token'ını döndürür
+  String? getToken() {
+    return _currentUser?.token;
+  }
 }

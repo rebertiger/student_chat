@@ -10,9 +10,9 @@ abstract class RoomRepository {
     int? subjectId,
     bool? isPublic,
     int? createdBy,
-    String? creatorName,
   });
   Future<void> joinRoom({required int roomId});
+  Future<void> deleteRoom({required int roomId});
 }
 
 // Implementation of the Room Repository
@@ -44,7 +44,6 @@ class RoomRepositoryImpl implements RoomRepository {
     int? subjectId,
     bool? isPublic,
     int? createdBy,
-    String? creatorName,
   }) async {
     try {
       final newRoom = await remoteDataSource.createRoom(
@@ -52,7 +51,6 @@ class RoomRepositoryImpl implements RoomRepository {
         subjectId: subjectId,
         isPublic: isPublic,
         createdBy: createdBy,
-        creatorName: creatorName,
       );
       return newRoom;
     } on ServerException catch (e) {
@@ -68,6 +66,15 @@ class RoomRepositoryImpl implements RoomRepository {
       // No return value needed
     } on ServerException catch (e) {
       // Handle or re-throw specific exceptions
+      throw ServerException(message: e.message);
+    }
+  }
+
+  @override
+  Future<void> deleteRoom({required int roomId}) async {
+    try {
+      await remoteDataSource.deleteRoom(roomId: roomId);
+    } on ServerException catch (e) {
       throw ServerException(message: e.message);
     }
   }

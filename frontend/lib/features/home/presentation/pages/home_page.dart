@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/di/injection_container.dart';
-import '../../../chat/presentation/pages/chat_page.dart';
+import '../../../../core/services/user_service.dart';
+import '../../data/models/room_model.dart';
 import '../cubit/room_cubit.dart';
 import 'create_room_page.dart';
+import '../../../chat/presentation/pages/chat_page.dart';
+import '../../../../core/di/injection_container.dart';
+import 'package:provider/provider.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => sl<RoomCubit>()..loadRooms(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => sl<RoomCubit>()..loadRooms()),
+        Provider(create: (_) => sl<UserService>()),
+      ],
       child: const HomeView(),
     );
   }
@@ -85,7 +91,16 @@ class HomeView extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
-                      onPressed: () => Navigator.pushNamed(context, '/create-room'),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => CreateRoomPage(
+                              roomCubit: context.read<RoomCubit>(),
+                            ),
+                          ),
+                        );
+                      },
                       icon: const Icon(Icons.add),
                       label: const Text('Create Room'),
                       style: ElevatedButton.styleFrom(
@@ -114,116 +129,126 @@ class HomeView extends StatelessWidget {
                 itemCount: state.rooms.length,
                 itemBuilder: (context, index) {
                   final room = state.rooms[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: InkWell(
-                      onTap: () async {
-                        final success = await context
-                            .read<RoomCubit>()
-                            .joinRoom(room.roomId);
+                  return GestureDetector(
+                    onLongPress: () {
+                      final currentUser =
+                          Provider.of<UserService>(context, listen: false)
+                              .getCurrentUser();
+                      if (currentUser?.userId == room.createdBy) {
+                        _showDeleteConfirmationDialog(context, room);
+                      }
+                    },
+                    child: Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: InkWell(
+                        onTap: () async {
+                          final success = await context
+                              .read<RoomCubit>()
+                              .joinRoom(room.roomId);
 
-                        if (!context.mounted) return;
+                          if (!context.mounted) return;
 
-                        if (success) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ChatPage(
-                                roomId: room.roomId,
-                                roomName: room.roomName,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  room.isPublic
-                                      ? Icons.public
-                                      : Icons.lock_outline,
-                                  color: Colors.deepPurple,
-                                  size: 20,
+                          if (success) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ChatPage(
+                                  roomId: room.roomId,
+                                  roomName: room.roomName,
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    room.roomName,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                              ),
+                            );
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    room.isPublic
+                                        ? Icons.public
+                                        : Icons.lock_outline,
+                                    color: Colors.deepPurple,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      room.roomName,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: room.isPublic
-                                        ? Colors.green[100]
-                                        : Colors.orange[100],
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    room.isPublic ? 'Public' : 'Private',
-                                    style: TextStyle(
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
                                       color: room.isPublic
-                                          ? Colors.green[700]
-                                          : Colors.orange[700],
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
+                                          ? Colors.green[100]
+                                          : Colors.orange[100],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      room.isPublic ? 'Public' : 'Private',
+                                      style: TextStyle(
+                                        color: room.isPublic
+                                            ? Colors.green[700]
+                                            : Colors.orange[700],
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            if (room.subjectName != null) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                room.subjectName!,
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 14,
-                                ),
+                                ],
                               ),
-                            ],
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.person_outline,
-                                  size: 16,
-                                  color: Colors.grey[600],
-                                ),
-                                const SizedBox(width: 4),
+                              if (room.subjectName != null) ...[
+                                const SizedBox(height: 8),
                                 Text(
-                                  room.creatorName ?? 'Unknown',
+                                  room.subjectName!,
                                   style: TextStyle(
                                     color: Colors.grey[600],
-                                    fontSize: 12,
+                                    fontSize: 14,
                                   ),
                                 ),
-                                const Spacer(),
-                                Icon(
-                                  Icons.arrow_forward_ios,
-                                  size: 16,
-                                  color: Colors.grey[400],
-                                ),
                               ],
-                            ),
-                          ],
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.person_outline,
+                                    size: 16,
+                                    color: Colors.grey[600],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    room.creatorName ?? 'Unknown',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Icon(
+                                    Icons.arrow_forward_ios,
+                                    size: 16,
+                                    color: Colors.grey[400],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -279,9 +304,8 @@ class HomeView extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => BlocProvider.value(
-                value: context.read<RoomCubit>(),
-                child: const CreateRoomPage(),
+              builder: (_) => CreateRoomPage(
+                roomCubit: context.read<RoomCubit>(),
               ),
             ),
           );
@@ -296,6 +320,36 @@ class HomeView extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog(BuildContext context, RoomModel room) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete Room'),
+          content: Text(
+            'Are you sure you want to delete "${room.roomName}"? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                context.read<RoomCubit>().deleteRoom(roomId: room.roomId);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

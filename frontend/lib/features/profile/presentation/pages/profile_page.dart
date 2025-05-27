@@ -2,15 +2,39 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/injection_container.dart';
 import '../cubit/profile_cubit.dart';
+import '../../../subjects/presentation/cubit/subjects_cubit.dart';
+import '../../../subjects/presentation/widgets/subjects_management_widget.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
+import '../../../../core/routes/app_router.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => sl<ProfileCubit>()..loadProfile(),
-      child: const ProfileView(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => sl<ProfileCubit>()..loadProfile()),
+        BlocProvider(create: (_) => sl<AuthCubit>()),
+      ],
+      child: BlocListener<AuthCubit, AuthState>(
+        listener: (context, state) {
+          if (state is AuthDeleted) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              AppRouter.login,
+              (route) => false,
+            );
+          } else if (state is AuthError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+        child: const ProfileView(),
+      ),
     );
   }
 }
@@ -28,6 +52,37 @@ class _ProfileViewState extends State<ProfileView> {
   late TextEditingController _universityController;
   late TextEditingController _departmentController;
   late TextEditingController _bioController;
+
+  void _showDeleteConfirmationDialog(BuildContext context) {
+    final authCubit = context.read<AuthCubit>();
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete Account'),
+          content: const Text(
+            'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                authCubit.deleteUser();
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -72,6 +127,12 @@ class _ProfileViewState extends State<ProfileView> {
         backgroundColor: Colors.deepPurple,
         elevation: 2,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: () => _showDeleteConfirmationDialog(context),
+          ),
+        ],
       ),
       body: BlocConsumer<ProfileCubit, ProfileState>(
         listener: (context, state) {
@@ -232,13 +293,17 @@ class _ProfileViewState extends State<ProfileView> {
                         hintText: 'Tell us about yourself...',
                       ),
                       const SizedBox(height: 32),
+                      BlocProvider(
+                        create: (_) => sl<SubjectsCubit>(),
+                        child: const SubjectsManagementWidget(),
+                      ),
+                      const SizedBox(height: 32),
                       SizedBox(
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: (state is ProfileUpdating)
-                              ? null
-                              : _saveProfile,
+                          onPressed:
+                              (state is ProfileUpdating) ? null : _saveProfile,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.deepPurple,
                             foregroundColor: Colors.white,
@@ -288,8 +353,7 @@ class _ProfileViewState extends State<ProfileView> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: () =>
-                        context.read<ProfileCubit>().loadProfile(),
+                    onPressed: () => context.read<ProfileCubit>().loadProfile(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple,
                       foregroundColor: Colors.white,

@@ -2,10 +2,12 @@ import 'package:file_picker/file_picker.dart'; // Import file_picker
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart'; // Import url_launcher
+import 'dart:io' show Platform; // Add Platform import
 import '../../../../core/di/injection_container.dart'; // Import GetIt
 import '../../data/models/chat_message_model.dart'; // Import model for type check
 import '../cubit/chat_cubit.dart'; // Import ChatCubit
 import '../widgets/report_bottom_sheet.dart'; // Import our new report bottom sheet
+import 'package:flutter/foundation.dart';
 
 // The main page for displaying chat messages and input
 class ChatPage extends StatelessWidget {
@@ -107,25 +109,83 @@ class _ChatViewState extends State<ChatView> {
 
   // --- Helper to build message content based on type ---
   Widget _buildMessageContent(BuildContext context, ChatMessageModel message) {
-    // TODO: Get base URL properly (maybe from DI or config)
-    const String baseUrl =
-        'http://localhost:3000'; // Match backend static serving
+    // Platform-specific base URL
+    final String baseUrl = Platform.isAndroid
+        ? 'http://10.0.2.2:3000' // Android emulator
+        : 'http://localhost:3000'; // iOS simulator
 
     if (message.messageType == 'image' && message.fileUrl != null) {
-      // Display image from network
-      // Add error handling for Image.network if needed
-      return Image.network(
-        baseUrl + message.fileUrl!,
-        // Optional: Add width, height, fit, loadingBuilder, errorBuilder
-        height: 150, // Example height
-        fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return const Center(child: CircularProgressIndicator());
+      // Display image from network with tap to preview
+      return GestureDetector(
+        onTap: () {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return Dialog(
+                backgroundColor: Colors.transparent,
+                child: Stack(
+                  children: [
+                    // Full screen image
+                    InteractiveViewer(
+                      minScale: 0.5,
+                      maxScale: 4.0,
+                      child: Image.network(
+                        baseUrl + message.fileUrl!,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          print('Error loading image: $error');
+                          return const Icon(Icons.broken_image, size: 50);
+                        },
+                      ),
+                    ),
+                    // Close button
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
         },
-        errorBuilder: (context, error, stackTrace) {
-          return const Icon(Icons.broken_image, size: 50);
-        },
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              baseUrl + message.fileUrl!,
+              height: 150,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const Center(child: CircularProgressIndicator());
+              },
+              errorBuilder: (context, error, stackTrace) {
+                print('Error loading image: $error');
+                return const Icon(Icons.broken_image, size: 50);
+              },
+            ),
+          ),
+        ),
       );
     } else if (message.messageType == 'pdf' && message.fileUrl != null) {
       // Display an icon and text, make it tappable to launch URL
@@ -137,12 +197,11 @@ class _ChatViewState extends State<ChatView> {
             const Icon(Icons.picture_as_pdf, color: Colors.red),
             const SizedBox(width: 8),
             Expanded(
-              // Use Expanded to prevent overflow
               child: Text(
                 message.messageText ?? 'View PDF',
                 style: const TextStyle(
                     decoration: TextDecoration.underline, color: Colors.blue),
-                overflow: TextOverflow.ellipsis, // Handle long filenames
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -174,11 +233,38 @@ class _ChatViewState extends State<ChatView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.roomName,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+        title: BlocBuilder<ChatCubit, ChatState>(
+          builder: (context, state) {
+            return Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.roomName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (state is ChatLoaded)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${state.totalMessages} messages',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,

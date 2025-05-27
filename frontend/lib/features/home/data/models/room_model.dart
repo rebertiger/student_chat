@@ -35,12 +35,9 @@ class RoomModel extends Equatable {
       isPublic: json['is_public'] as bool,
       createdAt: DateTime.parse(json['created_at'] as String),
       subjectId: json['subject_id'] as int?,
-      subjectName:
-          safeGet<String>(json['subject'] as Map<String, dynamic>?, 'name'),
-      createdBy: json['created_by'] as int?,
-      creatorName: json['creator_full_name'] as String? ??
-          safeGet<String>(
-              json['creator'] as Map<String, dynamic>?, 'full_name'),
+      subjectName: json['subject_name'] as String?,
+      createdBy: json['creator_id'] as int?,
+      creatorName: json['creator_name'] as String?,
     );
   }
 
