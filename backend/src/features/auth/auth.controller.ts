@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
 const SALT_ROUNDS = 10; // Standard salt rounds for bcrypt
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'; // JWT secret key - Bu değer normalde environment variable'dan alınmalıdır
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'; // JWT secret key 
 
 export const register = async (req: Request, res: Response) => {
     const { email, password, full_name, university, department } = req.body;
@@ -94,5 +94,26 @@ export const login = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ message: 'Internal server error during login.' });
+    }
+};
+
+export const deleteUser = async (req: Request, res: Response) => {
+    const userId = req.user!.user_id;
+
+    try {
+        // Kullanıcıyı sil (CASCADE ile ilişkili tüm veriler otomatik silinecek)
+        const result = await pool.query(
+            'DELETE FROM users WHERE user_id = $1 RETURNING user_id',
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.status(200).json({ message: 'User and all associated data deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({ message: 'Internal server error during user deletion' });
     }
 };

@@ -12,8 +12,10 @@ class AuthCubit extends Cubit<AuthState> {
   final AuthRepository authRepository;
   final UserService userService;
 
-  AuthCubit({required this.authRepository, required this.userService})
-      : super(AuthInitial());
+  AuthCubit({
+    required this.authRepository,
+    required this.userService,
+  }) : super(AuthInitial());
 
   Future<void> login(String email, String password) async {
     emit(AuthLoading());
@@ -21,12 +23,12 @@ class AuthCubit extends Cubit<AuthState> {
       final user = await authRepository.login(email: email, password: password);
       userService
           .setCurrentUser(user); // Kullanıcı bilgilerini global servise kaydet
-      emit(AuthAuthenticated(user: user));
+      emit(AuthAuthenticated(user));
     } on ServerException catch (e) {
-      emit(AuthError(message: e.message));
+      emit(AuthError(e.message));
     } catch (e) {
       // Catch any other unexpected errors
-      emit(AuthError(message: 'An unexpected error occurred: ${e.toString()}'));
+      emit(AuthError('An unexpected error occurred: ${e.toString()}'));
     }
   }
 
@@ -48,11 +50,24 @@ class AuthCubit extends Cubit<AuthState> {
       );
       userService
           .setCurrentUser(user); // Kullanıcı bilgilerini global servise kaydet
-      emit(AuthAuthenticated(user: user));
+      emit(AuthAuthenticated(user));
     } on ServerException catch (e) {
-      emit(AuthError(message: e.message));
+      emit(AuthError(e.message));
     } catch (e) {
-      emit(AuthError(message: 'An unexpected error occurred: ${e.toString()}'));
+      emit(AuthError('An unexpected error occurred: ${e.toString()}'));
+    }
+  }
+
+  Future<void> deleteUser() async {
+    emit(AuthDeleting());
+    try {
+      await authRepository.deleteUser();
+      userService.clearCurrentUser();
+      emit(AuthDeleted());
+    } on ServerException catch (e) {
+      emit(AuthError(e.message));
+    } catch (e) {
+      emit(AuthError('An unexpected error occurred'));
     }
   }
 }

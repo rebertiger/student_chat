@@ -17,18 +17,27 @@ class AuthLoading extends AuthState {}
 class AuthAuthenticated extends AuthState {
   final UserModel user; // Include user data upon successful authentication
 
-  const AuthAuthenticated({required this.user});
+  const AuthAuthenticated(this.user);
 
   @override
   List<Object?> get props => [user];
 }
 
+// State when the user is not authenticated
+class AuthUnauthenticated extends AuthState {}
+
 // State when an authentication operation fails
 class AuthError extends AuthState {
   final String message; // Error message to display to the user
 
-  const AuthError({required this.message});
+  const AuthError(this.message);
 
   @override
   List<Object?> get props => [message];
 }
+
+// State when the user is deleting their account
+class AuthDeleting extends AuthState {}
+
+// State when the user's account is deleted
+class AuthDeleted extends AuthState {}

@@ -20,6 +20,8 @@ abstract class AuthRemoteDataSource {
     required String email,
     required String password,
   });
+
+  Future<void> deleteUser();
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -107,6 +109,26 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     } catch (e) {
       throw ServerException(
           message: 'An unexpected error occurred during login.');
+    }
+  }
+
+  @override
+  Future<void> deleteUser() async {
+    try {
+      final response = await dioClient.delete('/auth/delete');
+
+      if (response.statusCode != 200) {
+        throw ServerException(
+            message: 'Failed to delete user: ${response.statusCode}');
+      }
+    } on DioException catch (e) {
+      final message = e.response?.data['message'] as String? ??
+          e.message ??
+          'Unknown error deleting user';
+      throw ServerException(message: message);
+    } catch (e) {
+      throw ServerException(
+          message: 'An unexpected error occurred while deleting user');
     }
   }
 }

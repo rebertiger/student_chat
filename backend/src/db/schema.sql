@@ -53,7 +53,7 @@ CREATE TABLE rooms (
     room_name VARCHAR(255) NOT NULL,
     subject_id INTEGER REFERENCES subjects(subject_id),
     is_public BOOLEAN DEFAULT TRUE,
-    created_by INTEGER REFERENCES users(user_id),
+    created_by INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -70,7 +70,7 @@ CREATE TABLE room_participants (
 CREATE TABLE messages (
     message_id SERIAL PRIMARY KEY,
     room_id INTEGER REFERENCES rooms(room_id) ON DELETE CASCADE,
-    sender_id INTEGER REFERENCES users(user_id),
+    sender_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
     message_type VARCHAR(50) DEFAULT 'text',
     message_text TEXT,
     file_url VARCHAR(255),
@@ -82,7 +82,7 @@ CREATE TABLE messages (
 CREATE TABLE reports (
     report_id SERIAL PRIMARY KEY,
     message_id INTEGER REFERENCES messages(message_id) ON DELETE CASCADE,
-    reported_by INTEGER REFERENCES users(user_id),
+    reported_by INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
     reason TEXT,
     reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -90,11 +90,11 @@ CREATE TABLE reports (
 -- Notifications
 CREATE TABLE notifications (
     notification_id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(user_id),
+    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
     content TEXT NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-); 
+);
 
 -- Function to count messages in a room
 CREATE OR REPLACE FUNCTION count_room_messages(room_id_param INTEGER)
@@ -110,7 +110,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger function to create notifications when a new message is sent
+-- Trigger function to create notifications
 CREATE OR REPLACE FUNCTION notify_new_message()
 RETURNS TRIGGER AS $$
 DECLARE
